@@ -7,9 +7,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Version is set at build time via ldflags.
+var Version = "dev"
+
 var rootCmd = &cobra.Command{
-	Use:   "fetchquest",
-	Short: "Sync media from Meta Quest headsets to cloud/NAS",
+	Use:     "fetchquest",
+	Short:   "Sync media from Meta Quest headsets to cloud/NAS",
+	Version: Version,
 	Long: `FetchQuest pulls videos, screenshots, and photos from Meta Quest headsets
 via ADB, stores them locally, then syncs them to cloud/NAS destinations via rclone.`,
 }

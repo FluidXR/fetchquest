@@ -41,7 +41,7 @@ curl https://rclone.org/install.sh | sudo bash
 ```bash
 git clone https://github.com/FluidXR/fetchquest.git
 cd fetchquest
-go build -o fetchquest .
+go build -ldflags "-X github.com/FluidXR/fetchquest/cmd.Version=0.1.0" -o fetchquest .
 ```
 
 Or install directly:
