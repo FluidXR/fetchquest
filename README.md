@@ -65,7 +65,7 @@ fetchquest config add-dest my-nas "nas:share/FetchQuest" # register it
 
 FetchQuest uses ADB to pull media off the Quest (USB or WiFi) and rclone to sync it to your destinations. A manifest tracks what's been synced so nothing gets transferred twice.
 
-`fetchquest sync` pulls everything locally first, then syncs to all destinations. `fetchquest stream` does one file at a time instead — pull, sync, move on to the next. Pass `--skip-local` to stream if you don't want to keep local copies.
+`fetchquest sync` pulls everything locally first, then syncs to all destinations. Pass `--skip-local` if you don't want to keep local copies — it will pull and sync one file at a time straight to your destinations.
 
 `fetchquest clean` only deletes files from the Quest that are confirmed synced to *all* destinations. Pass `--any` to delete files synced to at least one destination instead. `--local` cleans up the local sync directory instead of the Quest. `--dry-run` to preview.
 
@@ -76,7 +76,7 @@ Original file timestamps are preserved.
 | Command | Description |
 |---------|-------------|
 | `fetchquest sync` | Pull all media from Quest, then sync to all destinations |
-| `fetchquest stream` | Pull and sync one file at a time (`--skip-local` to not keep local copies) |
+| `fetchquest sync --skip-local` | Sync straight to destinations without keeping local copies |
 | `fetchquest pull` | Pull media from Quest to local directory |
 | `fetchquest push` | Sync local media to destinations |
 | `fetchquest clean` | Delete synced media from Quest |
@@ -89,7 +89,7 @@ Original file timestamps are preserved.
 
 - Works with multiple Quests — each device is tracked separately so files don't get mixed up
 - Sync to Google Drive, Dropbox, NAS, S3, or any of the [70+ backends rclone supports](https://rclone.org/overview/), and you can sync to more than one at a time
-- Streaming mode pulls and syncs one file at a time — use `--skip-local` if you don't have much local disk space
+- `--skip-local` mode syncs straight to destinations without keeping local copies, for machines with limited disk space
 - `fetchquest clean` won't delete anything from the Quest unless it's been synced to every destination you've configured (or at least one, with `--any`)
 - Keeps track of what's already been synced so it doesn't transfer the same file twice
 - Preserves the original recording timestamps on synced files
