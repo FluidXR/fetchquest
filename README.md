@@ -67,7 +67,7 @@ FetchQuest uses ADB to pull media off the Quest (USB or WiFi) and rclone to sync
 
 `fetchquest stream` does one file at a time — pull, sync, delete local copy — so it works fine on machines with limited disk. `fetchquest sync` pulls everything first, then syncs.
 
-`fetchquest clean` only deletes files from the Quest that are confirmed synced to *all* destinations. Pass `--any` to delete files synced to at least one destination instead. `--dry-run` to preview.
+`fetchquest clean` only deletes files from the Quest that are confirmed synced to *all* destinations. Pass `--any` to delete files synced to at least one destination instead. `--local` cleans up the local sync directory instead of the Quest. `--dry-run` to preview.
 
 Original file timestamps are preserved.
 
@@ -79,7 +79,7 @@ Original file timestamps are preserved.
 | `fetchquest sync` | Pull all, then sync to all destinations |
 | `fetchquest pull` | Pull media from Quest to local directory |
 | `fetchquest push` | Sync local media to destinations |
-| `fetchquest clean` | Delete synced media from Quest |
+| `fetchquest clean` | Delete synced media from Quest (`--local` for local dir) |
 | `fetchquest devices` | List connected Quests and sync stats |
 | `fetchquest config` | View/manage config |
 | `fetchquest config add-dest` | Add a destination (interactive) |
