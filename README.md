@@ -36,12 +36,40 @@ fetchquest devices
 
 FetchQuest will ask you to nickname the device the first time it sees it.
 
-**3. Set up a sync destination** (Google Drive, NAS, S3, etc.):
+**3. Set up a sync destination** (Google Drive, NAS, S3, Dropbox, etc.):
 
 ```bash
 rclone config                                          # create an rclone remote
 fetchquest config add-dest my-nas "nas:share/FetchQuest"  # tell fetchquest about it
 ```
+
+<details>
+<summary><b>Example: Google Drive</b></summary>
+
+```bash
+rclone config create gdrive drive                      # opens browser to authorize
+fetchquest config add-dest gdrive "gdrive:FetchQuest"
+```
+</details>
+
+<details>
+<summary><b>Example: Dropbox</b></summary>
+
+```bash
+rclone config create dropbox dropbox                   # opens browser to authorize
+fetchquest config add-dest dropbox "dropbox:FetchQuest"
+```
+</details>
+
+<details>
+<summary><b>Example: SMB/NAS</b></summary>
+
+```bash
+rclone config create nas smb host 192.168.1.100 user myuser
+rclone config password nas pass "mypassword"
+fetchquest config add-dest nas "nas:share/FetchQuest"
+```
+</details>
 
 **4. Sync!**
 
