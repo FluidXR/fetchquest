@@ -85,9 +85,13 @@ func (p *Pusher) PushToDest(dest config.Destination) (PushResult, error) {
 }
 
 // PushFile uploads a single file to all destinations and records it.
-func (p *Pusher) PushFile(fileID int64, localPath string) ([]PushResult, error) {
+// If baseDir is empty, the config's sync dir is used to compute relative paths.
+func (p *Pusher) PushFile(fileID int64, localPath, baseDir string) ([]PushResult, error) {
 	var results []PushResult
-	syncDir := p.Config.ExpandSyncDir()
+	syncDir := baseDir
+	if syncDir == "" {
+		syncDir = p.Config.ExpandSyncDir()
+	}
 
 	for _, dest := range p.Config.Destinations {
 		result := PushResult{Destination: dest.Name}

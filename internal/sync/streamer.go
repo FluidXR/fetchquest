@@ -54,7 +54,13 @@ func (s *Streamer) StreamAll() ([]StreamResult, error) {
 // StreamDevice streams files from a specific device, one at a time.
 func (s *Streamer) StreamDevice(serial string) (StreamResult, error) {
 	result := StreamResult{DeviceSerial: serial}
-	syncDir := s.Config.ExpandSyncDir()
+
+	// Use a temp directory for streaming — files are deleted after sync
+	tmpDir, err := os.MkdirTemp("", "fetchquest-stream-*")
+	if err != nil {
+		return result, fmt.Errorf("create temp dir: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
 
 	pusher := &Pusher{
 		Rclone:   s.Rclone,
@@ -82,7 +88,7 @@ func (s *Streamer) StreamDevice(serial string) (StreamResult, error) {
 
 			// Pull to temp location
 			mediaType := mediaTypeFromPath(mediaPath)
-			localDir := filepath.Join(syncDir, mediaType)
+			localDir := filepath.Join(tmpDir, mediaType)
 			if err := os.MkdirAll(localDir, 0o755); err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("mkdir %s: %v", localDir, err))
 				continue
@@ -100,8 +106,8 @@ func (s *Streamer) StreamDevice(serial string) (StreamResult, error) {
 				result.Errors = append(result.Errors, fmt.Sprintf("chtimes %s: %v", localPath, err))
 			}
 
-			// Record in manifest
-			fileID, err := s.Manifest.RecordPull(serial, f.Path, localPath, f.Size, f.MTime.Unix())
+			// Record in manifest (no local_path since stream deletes it after sync)
+			fileID, err := s.Manifest.RecordPull(serial, f.Path, "", f.Size, f.MTime.Unix())
 			if err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("record %s: %v", f.Path, err))
 				continue
@@ -109,7 +115,7 @@ func (s *Streamer) StreamDevice(serial string) (StreamResult, error) {
 
 			// Push to all destinations
 			fmt.Printf("  [stream] Pushing %s to all destinations\n", filepath.Base(f.Path))
-			pushResults, err := pusher.PushFile(fileID, localPath)
+			pushResults, err := pusher.PushFile(fileID, localPath, tmpDir)
 			if err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("push %s: %v", f.Path, err))
 				continue

@@ -190,6 +190,47 @@ func (m *DB) GetAnySyncedFiles(deviceSerial string) ([]Entry, error) {
 	return entries, rows.Err()
 }
 
+// GetLocalSyncedFiles returns files with a local_path that have been synced to destinations.
+// If anyDest is true, files synced to at least one destination are returned.
+// If anyDest is false, only files synced to all given destinations are returned.
+func (m *DB) GetLocalSyncedFiles(destinations []string, anyDest bool) ([]Entry, error) {
+	if len(destinations) == 0 {
+		return nil, nil
+	}
+
+	var query string
+	var args []interface{}
+
+	if anyDest {
+		query = `SELECT f.id, f.device_serial, f.remote_path, f.local_path, f.size, f.mtime
+			 FROM files f
+			 WHERE f.local_path != ''
+			   AND (SELECT COUNT(*) FROM dest_syncs ds WHERE ds.file_id = f.id) >= 1`
+	} else {
+		query = `SELECT f.id, f.device_serial, f.remote_path, f.local_path, f.size, f.mtime
+			 FROM files f
+			 WHERE f.local_path != ''
+			   AND (SELECT COUNT(DISTINCT ds.destination) FROM dest_syncs ds WHERE ds.file_id = f.id) >= ?`
+		args = append(args, len(destinations))
+	}
+
+	rows, err := m.db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("get local synced: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []Entry
+	for rows.Next() {
+		var e Entry
+		if err := rows.Scan(&e.ID, &e.DeviceSerial, &e.RemotePath, &e.LocalPath, &e.Size, &e.MTime); err != nil {
+			return nil, fmt.Errorf("scan local synced: %w", err)
+		}
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
+}
+
 // DeviceStats returns sync statistics for a device.
 type DeviceStats struct {
 	TotalFiles  int
