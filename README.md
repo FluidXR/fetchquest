@@ -6,7 +6,7 @@ Fetches the recordings and screenshots from your Meta Quest and syncs them to yo
 fetchquest sync
 ```
 
-To use FetchQuest, plug in your Quest via USB and run `fetchquest sync`. It pulls each file off the headset one at a time and syncs it to all of your configured destinations. Once everything is synced, you can run `fetchquest clean` to delete the files from the Quest. It checks the manifest first and only deletes files that have made it to all your destinations.
+To use FetchQuest, plug in your Quest via USB and run `fetchquest sync`. It pulls all VideoShots and ScreenShots off the headset and syncs it to all of your configured destinations. Once everything is synced, you can run `fetchquest clean` to delete the files from the Quest. It checks the manifest first and only deletes files that have made it to all your destinations.
 
 ## Install
 
