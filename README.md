@@ -1,6 +1,6 @@
 # FetchQuest
 
-Get videos, screenshots, and photos off your Meta Quest and into Google Drive, Dropbox, a NAS, or wherever you keep files.
+Back up videos, screenshots, and photos from your Meta Quest to Google Drive, Dropbox, a NAS, or wherever you keep files, and free up space on the headset.
 
 ```bash
 fetchquest stream
