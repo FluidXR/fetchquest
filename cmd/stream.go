@@ -13,7 +13,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var streamDevice string
+var (
+	streamDevice    string
+	streamSkipLocal bool
+)
 
 var streamCmd = &cobra.Command{
 	Use:               "stream",
@@ -38,10 +41,11 @@ then deletes the local copy before moving to the next file.`,
 
 		rc := rclone.NewClient()
 		streamer := &sync.Streamer{
-			ADB:      adb.NewClient(),
-			Rclone:   rc,
-			Manifest: db,
-			Config:   cfg,
+			ADB:       adb.NewClient(),
+			Rclone:    rc,
+			Manifest:  db,
+			Config:    cfg,
+			SkipLocal: streamSkipLocal,
 		}
 
 		if streamDevice != "" {
@@ -83,5 +87,6 @@ func printStreamResult(r sync.StreamResult) {
 
 func init() {
 	streamCmd.Flags().StringVarP(&streamDevice, "device", "d", "", "Device serial (default: all)")
+	streamCmd.Flags().BoolVar(&streamSkipLocal, "skip-local", false, "Use a temp dir instead of the local sync dir")
 	rootCmd.AddCommand(streamCmd)
 }

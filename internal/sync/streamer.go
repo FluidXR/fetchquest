@@ -13,10 +13,11 @@ import (
 
 // Streamer handles one-file-at-a-time streaming mode.
 type Streamer struct {
-	ADB      *adb.Client
-	Rclone   *rclone.Client
-	Manifest *manifest.DB
-	Config   *config.Config
+	ADB       *adb.Client
+	Rclone    *rclone.Client
+	Manifest  *manifest.DB
+	Config    *config.Config
+	SkipLocal bool
 }
 
 // StreamResult summarizes a stream operation.
@@ -55,12 +56,21 @@ func (s *Streamer) StreamAll() ([]StreamResult, error) {
 func (s *Streamer) StreamDevice(serial string) (StreamResult, error) {
 	result := StreamResult{DeviceSerial: serial}
 
-	// Use a temp directory for streaming — files are deleted after sync
-	tmpDir, err := os.MkdirTemp("", "fetchquest-stream-*")
-	if err != nil {
-		return result, fmt.Errorf("create temp dir: %w", err)
+	var baseDir string
+	var cleanupDir string
+	if s.SkipLocal {
+		tmpDir, err := os.MkdirTemp("", "fetchquest-stream-*")
+		if err != nil {
+			return result, fmt.Errorf("create temp dir: %w", err)
+		}
+		cleanupDir = tmpDir
+		baseDir = tmpDir
+	} else {
+		baseDir = s.Config.ExpandSyncDir()
 	}
-	defer os.RemoveAll(tmpDir)
+	if cleanupDir != "" {
+		defer os.RemoveAll(cleanupDir)
+	}
 
 	pusher := &Pusher{
 		Rclone:   s.Rclone,
@@ -86,9 +96,9 @@ func (s *Streamer) StreamDevice(serial string) (StreamResult, error) {
 				continue
 			}
 
-			// Pull to temp location
+			// Pull to local location
 			mediaType := mediaTypeFromPath(mediaPath)
-			localDir := filepath.Join(tmpDir, mediaType)
+			localDir := filepath.Join(baseDir, mediaType)
 			if err := os.MkdirAll(localDir, 0o755); err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("mkdir %s: %v", localDir, err))
 				continue
@@ -106,8 +116,12 @@ func (s *Streamer) StreamDevice(serial string) (StreamResult, error) {
 				result.Errors = append(result.Errors, fmt.Sprintf("chtimes %s: %v", localPath, err))
 			}
 
-			// Record in manifest (no local_path since stream deletes it after sync)
-			fileID, err := s.Manifest.RecordPull(serial, f.Path, "", f.Size, f.MTime.Unix())
+			// Record in manifest
+			manifestLocalPath := localPath
+			if s.SkipLocal {
+				manifestLocalPath = "" // temp file will be deleted
+			}
+			fileID, err := s.Manifest.RecordPull(serial, f.Path, manifestLocalPath, f.Size, f.MTime.Unix())
 			if err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("record %s: %v", f.Path, err))
 				continue
@@ -115,7 +129,7 @@ func (s *Streamer) StreamDevice(serial string) (StreamResult, error) {
 
 			// Push to all destinations
 			fmt.Printf("  [stream] Pushing %s to all destinations\n", filepath.Base(f.Path))
-			pushResults, err := pusher.PushFile(fileID, localPath, tmpDir)
+			pushResults, err := pusher.PushFile(fileID, localPath, baseDir)
 			if err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("push %s: %v", f.Path, err))
 				continue
@@ -130,8 +144,8 @@ func (s *Streamer) StreamDevice(serial string) (StreamResult, error) {
 				}
 			}
 
-			// Delete local copy if all destinations succeeded
-			if allPushed {
+			// Delete local copy if skipping local and all destinations succeeded
+			if s.SkipLocal && allPushed {
 				if err := os.Remove(localPath); err != nil {
 					result.Errors = append(result.Errors, fmt.Sprintf("delete local %s: %v", localPath, err))
 				} else {
