@@ -1,6 +1,6 @@
 # FetchQuest
 
-Fetches the recordings and screenshots from your Meta Quest and syncs them to your computer and cloud/network storage to free up space on your headset. Works with Google Drive, Dropbox, NASes running SMB, and more.
+Fetches the recordings and screenshots from your Meta Quest and syncs them to your computer or cloud/network storage to free up space on your headset. Works with Google Drive, Dropbox, NASes running SMB, and more.
 
 ```bash
 fetchquest stream
