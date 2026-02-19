@@ -1,158 +1,117 @@
 # FetchQuest
 
-A CLI tool that pulls videos, screenshots, and photos off Meta Quest headsets via ADB and syncs them to cloud/NAS destinations via rclone.
+A CLI tool that pulls videos, screenshots, and photos off Meta Quest headsets and syncs them to cloud/NAS destinations.
 
-## Features
+## Install
 
-- **Multi-device support** — sync from multiple Quests simultaneously, each tracked by serial number
-- **Streaming mode** — one-file-at-a-time transfer for machines with limited disk space
-- **Multiple destinations** — sync to Google Drive, SMB/NAS, S3, or any rclone-supported backend
-- **Smart deduplication** — SQLite manifest tracks every file so nothing gets synced twice
-- **Safe cleanup** — only deletes files from Quest after confirming they've reached ALL destinations
-- **File metadata preservation** — original creation/modification dates from the Quest are preserved on local and remote copies, so your files sort correctly by recording date
-- **Manifest backup** — manifest DB is automatically backed up to your destinations
+### Download a binary
 
-## Prerequisites
+Grab the latest release for your platform from [**Releases**](https://github.com/FluidXR/fetchquest/releases):
 
-- [Go 1.24+](https://go.dev/dl/) (for building)
-- [ADB](https://developer.android.com/tools/adb) (Android Debug Bridge)
-- [rclone](https://rclone.org/install/) (for cloud/NAS uploads)
+- **macOS (Apple Silicon):** `fetchquest-x.x.x-darwin-arm64.tar.gz`
+- **Linux (x86_64):** `fetchquest-x.x.x-linux-amd64.tar.gz`
+- **Windows (x86_64):** `fetchquest-x.x.x-windows-amd64.zip`
 
-### Install prerequisites
+Extract it and put the binary somewhere on your PATH.
 
-**macOS:**
-```bash
-brew install android-platform-tools rclone
-```
+> FetchQuest will prompt you to install ADB and rclone on first run if they're missing.
 
-**Windows:**
-- ADB: Download [Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools) and add to PATH
-- rclone: `winget install Rclone.Rclone` or download from [rclone.org](https://rclone.org/install/)
+### Or build from source
 
-**Linux:**
-```bash
-sudo apt install android-tools-adb   # Debian/Ubuntu
-sudo pacman -S android-tools         # Arch
-curl https://rclone.org/install.sh | sudo bash
-```
-
-## Building
-
-```bash
-git clone https://github.com/FluidXR/fetchquest.git
-cd fetchquest
-go build -o fetchquest .
-```
-
-Or install directly:
+Requires [Go 1.24+](https://go.dev/dl/):
 
 ```bash
 go install github.com/FluidXR/fetchquest@latest
 ```
 
-### Cross-compile
-
-FetchQuest is pure Go with no CGO dependencies, so cross-compiling is straightforward:
-
-```bash
-# Windows
-GOOS=windows GOARCH=amd64 go build -o fetchquest.exe .
-
-# Linux
-GOOS=linux GOARCH=amd64 go build -o fetchquest-linux .
-
-# Linux (ARM, e.g. Raspberry Pi)
-GOOS=linux GOARCH=arm64 go build -o fetchquest-linux-arm64 .
-```
-
 ## Quick Start
 
-### 1. Initialize config
+**1. Plug in your Quest via USB** (with [USB debugging enabled](https://developer.oculus.com/documentation/native/android/mobile-device-setup/))
 
-```bash
-fetchquest config init
-```
-
-This creates `~/.config/fetchquest/config.yaml` with default settings.
-
-### 2. Set up an rclone destination
-
-First configure an rclone remote (e.g., SMB, Google Drive, S3):
-
-```bash
-rclone config
-```
-
-Then add it as a FetchQuest destination:
-
-```bash
-fetchquest config add-dest my-nas "nas:share/QuestMedia"
-```
-
-### 3. Connect your Quest
-
-Connect your Quest via USB and enable USB debugging. Verify it's detected:
+**2. Check that it's detected:**
 
 ```bash
 fetchquest devices
 ```
 
-### 4. Sync
+FetchQuest will ask you to nickname the device the first time it sees it.
 
-Full sync (pull from Quest, then push to all destinations):
-
-```bash
-fetchquest sync
-```
-
-Or use streaming mode if you're low on disk space:
+**3. Set up a sync destination** (Google Drive, NAS, S3, etc.):
 
 ```bash
-fetchquest stream
+rclone config                                          # create an rclone remote
+fetchquest config add-dest my-nas "nas:share/FetchQuest"  # tell fetchquest about it
 ```
+
+**4. Sync!**
+
+```bash
+fetchquest stream   # pull one file at a time, upload, delete local copy (low disk usage)
+# or
+fetchquest sync     # pull all files locally first, then upload
+```
+
+**5. Free up space on the Quest** (only deletes files confirmed synced to ALL destinations):
+
+```bash
+fetchquest clean
+```
+
+That's it. Run `fetchquest stream` whenever you plug in your Quest to back up new recordings.
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `fetchquest pull` | Pull media from Quest(s) to local sync directory |
-| `fetchquest push` | Upload local media to rclone destinations |
-| `fetchquest sync` | Pull + push in one command |
-| `fetchquest stream` | One-file-at-a-time: pull, push, delete local copy |
-| `fetchquest clean` | Delete already-synced media from Quest(s) |
-| `fetchquest devices` | List connected Quests and sync status |
-| `fetchquest config` | View current configuration |
+| `fetchquest stream` | Pull one file → upload → delete local copy → repeat (recommended) |
+| `fetchquest sync` | Pull all media locally, then upload to all destinations |
+| `fetchquest pull` | Only pull media from Quest to local directory |
+| `fetchquest push` | Only upload local media to destinations |
+| `fetchquest clean` | Delete already-synced media from Quest (`--dry-run` to preview) |
+| `fetchquest devices` | List connected Quests and their sync status |
+| `fetchquest config` | View/manage configuration |
 
 ### Config subcommands
 
-| Command | Description |
-|---------|-------------|
-| `fetchquest config init` | Create default config file |
-| `fetchquest config add-dest <name> <remote>` | Add an rclone destination |
-| `fetchquest config remove-dest <name>` | Remove a destination |
-| `fetchquest config nickname <serial> <name>` | Set a device nickname |
-| `fetchquest config set-wifi <serial> <ip>` | Set WiFi IP for wireless ADB |
+```bash
+fetchquest config init                              # create default config
+fetchquest config add-dest <name> <rclone_remote>   # add a sync destination
+fetchquest config remove-dest <name>                # remove a destination
+fetchquest config nickname <serial> <name>          # name a device
+fetchquest config set-wifi <serial> <ip>            # set WiFi IP for wireless ADB
+fetchquest config restore [destination-name]        # restore manifest DB from backup
+```
 
 ### Flags
 
-Most commands support:
-- `-d, --device <serial>` — target a specific device (default: all connected)
+Most commands accept `-d <serial>` to target a specific device.
 
-Clean command:
-- `--dry-run` — show what would be deleted without deleting
-- `--confirm` — skip the confirmation prompt
+`fetchquest clean` also supports:
+- `--dry-run` — preview what would be deleted
+- `--confirm` — skip the interactive confirmation
+
+## Features
+
+- **Multi-device** — handles multiple Quests without interference
+- **Streaming mode** — one-file-at-a-time for machines with limited disk space
+- **Multiple destinations** — sync to Google Drive, SMB/NAS, S3, or any [rclone-supported backend](https://rclone.org/overview/)
+- **Smart dedup** — never syncs the same file twice
+- **Safe cleanup** — only deletes from Quest after confirmed sync to ALL destinations
+- **Date preservation** — original recording timestamps are kept on synced files
+- **Manifest backup** — sync state is automatically backed up to your destinations and can be restored with `fetchquest config restore`
+- **Cross-platform** — pure Go, no CGO, runs on macOS, Linux, and Windows
 
 ## Config File
 
 Located at `~/.config/fetchquest/config.yaml`:
 
 ```yaml
-sync_dir: ~/QuestMedia
+sync_dir: ~/FetchQuest
 destinations:
   - name: my-nas
-    rclone_remote: "nas:share/QuestMedia"
+    rclone_remote: "nas:share/FetchQuest"
   - name: google-drive
-    rclone_remote: "gdrive:QuestMedia"
+    rclone_remote: "gdrive:FetchQuest"
 devices:
   ABC123:
     nickname: "John's Quest 3"
@@ -162,14 +121,21 @@ media_paths:
   - /sdcard/Oculus/Screenshots/
 ```
 
-## How It Works
+## Building from Source
 
-1. **Pull** — Lists files on Quest via ADB, diffs against the SQLite manifest, pulls only new files
-2. **Push** — Uploads unpushed local files to each rclone destination, records sync status
-3. **Stream** — Pulls one file, uploads to all destinations, deletes local copy, repeats
-4. **Clean** — Checks manifest to find files synced to ALL destinations, deletes them from Quest
+```bash
+git clone https://github.com/FluidXR/fetchquest.git
+cd fetchquest
+go build -o fetchquest .
+```
 
-Files are organized locally as `<sync_dir>/<device_serial>/Videos/` and `<sync_dir>/<device_serial>/Screenshots/`.
+Cross-compile:
+
+```bash
+GOOS=windows GOARCH=amd64 go build -o fetchquest.exe .
+GOOS=linux   GOARCH=amd64 go build -o fetchquest-linux .
+GOOS=linux   GOARCH=arm64 go build -o fetchquest-linux-arm64 .
+```
 
 ## License
 
