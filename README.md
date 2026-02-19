@@ -6,7 +6,7 @@ Get videos, screenshots, and photos off your Meta Quest and into Google Drive, D
 fetchquest stream
 ```
 
-Plug in your Quest, run the command. Files get pulled off the headset and synced to your destinations. Run `fetchquest clean` when you want to free up space on the Quest — it only deletes files that have been synced to every destination.
+To use FetchQuest, plug in your Quest via USB and run `fetchquest stream`. It pulls each file off the headset one at a time and syncs it to all of your configured destinations. Once everything is synced, you can run `fetchquest clean` to delete the files from the Quest. It checks the manifest first and only deletes files that have made it to all your destinations.
 
 ## Install
 
