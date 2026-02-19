@@ -6,7 +6,7 @@ Fetches the recordings and screenshots from your Meta Quest and syncs them to yo
 fetchquest sync
 ```
 
-To use FetchQuest, plug in your Quest via USB and run `fetchquest sync`. It pulls all VideoShots and ScreenShots off the headset and syncs it to all of your configured destinations. Once everything is synced, you can run `fetchquest clean` to delete the files from the Quest. It checks the manifest first and only deletes files that have made it to all your destinations.
+To use FetchQuest, plug in your Quest via USB and run `fetchquest sync`. It pulls all the VideoShots and Screenshots off the headset and syncs them to all of your configured destinations. Once everything is synced, you can run `fetchquest clean` to delete the files from the Quest. It checks the manifest first and only deletes files that have made it to all your destinations.
 
 ## Install
 
@@ -36,7 +36,7 @@ go install github.com/FluidXR/fetchquest@latest
 fetchquest config add-dest
 ```
 
-Walks you through connecting Google Drive, Dropbox, a NAS, or S3. You can paste a folder link or browse.
+Walks you through connecting a local folder, Google Drive, Dropbox, a NAS, or S3. You can paste a folder link or browse.
 
 **3. Sync:**
 
@@ -49,6 +49,8 @@ fetchquest sync
 ```bash
 fetchquest clean
 ```
+
+That's it. Run `fetchquest sync` whenever you plug in.
 
 <details>
 <summary><b>Or add a destination manually</b></summary>
@@ -63,7 +65,7 @@ fetchquest config add-dest my-nas "nas:share/FetchQuest" # register it
 
 FetchQuest uses ADB to pull media off the Quest (USB or WiFi) and rclone to sync it to your destinations. A manifest tracks what's been synced so nothing gets transferred twice.
 
-`fetchquest stream` does one file at a time — pull, sync, delete local copy — so it works fine on machines with limited disk. `fetchquest sync` pulls everything first, then syncs.
+`fetchquest sync` pulls everything locally first, then syncs to all destinations. If you don't have much local disk space, `fetchquest stream` does one file at a time instead — pull, sync, delete local copy, repeat.
 
 `fetchquest clean` only deletes files from the Quest that are confirmed synced to *all* destinations. Pass `--any` to delete files synced to at least one destination instead. `--local` cleans up the local sync directory instead of the Quest. `--dry-run` to preview.
 
@@ -73,8 +75,8 @@ Original file timestamps are preserved.
 
 | Command | Description |
 |---------|-------------|
-| `fetchquest stream` | Pull and sync one file at a time (recommended) |
-| `fetchquest sync` | Pull all, then sync to all destinations |
+| `fetchquest sync` | Pull all media from Quest, then sync to all destinations |
+| `fetchquest stream` | Pull and sync one file at a time (for limited disk space) |
 | `fetchquest pull` | Pull media from Quest to local directory |
 | `fetchquest push` | Sync local media to destinations |
 | `fetchquest clean` | Delete synced media from Quest |
