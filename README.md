@@ -50,8 +50,6 @@ fetchquest sync
 fetchquest clean
 ```
 
-That's it. Run `fetchquest stream` whenever you plug in.
-
 <details>
 <summary><b>Or add a destination manually</b></summary>
 
