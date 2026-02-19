@@ -76,7 +76,7 @@ Original file timestamps are preserved.
 | Command | Description |
 |---------|-------------|
 | `fetchquest sync` | Pull all media from Quest, then sync to all destinations |
-| `fetchquest stream` | Pull and sync one file at a time (for limited disk space) |
+| `fetchquest stream` | Pull from Quest and sync straight to destinations, skipping the local sync dir |
 | `fetchquest pull` | Pull media from Quest to local directory |
 | `fetchquest push` | Sync local media to destinations |
 | `fetchquest clean` | Delete synced media from Quest |
