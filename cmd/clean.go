@@ -17,13 +17,15 @@ var (
 	cleanDevice  string
 	cleanConfirm bool
 	cleanDryRun  bool
+	cleanAny     bool
 )
 
 var cleanCmd = &cobra.Command{
 	Use:               "clean",
 	Short:             "Delete already-synced media from Quest(s)",
 	PersistentPreRunE: requireDeps(),
-	Long: `Removes files from Quest that have been confirmed synced to ALL configured destinations.
+	Long: `Removes files from Quest that have been confirmed synced to all configured destinations.
+Use --any to delete files synced to at least one destination instead.
 Shows a dry-run summary first unless --confirm is passed.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
@@ -66,7 +68,13 @@ Shows a dry-run summary first unless --confirm is passed.`,
 		}
 
 		for _, serial := range serials {
-			entries, err := db.GetFullySyncedFiles(serial, destNames)
+			var entries []manifest.Entry
+			var err error
+			if cleanAny {
+				entries, err = db.GetAnySyncedFiles(serial)
+			} else {
+				entries, err = db.GetFullySyncedFiles(serial, destNames)
+			}
 			if err != nil {
 				return fmt.Errorf("get synced files for %s: %w", serial, err)
 			}
@@ -115,5 +123,6 @@ func init() {
 	cleanCmd.Flags().StringVarP(&cleanDevice, "device", "d", "", "Device serial (default: all)")
 	cleanCmd.Flags().BoolVar(&cleanConfirm, "confirm", false, "Skip confirmation prompt")
 	cleanCmd.Flags().BoolVar(&cleanDryRun, "dry-run", false, "Show what would be deleted without deleting")
+	cleanCmd.Flags().BoolVar(&cleanAny, "any", false, "Delete files synced to at least one destination (default: all)")
 	rootCmd.AddCommand(cleanCmd)
 }

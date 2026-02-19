@@ -67,7 +67,7 @@ FetchQuest uses ADB to pull media off the Quest (USB or WiFi) and rclone to sync
 
 `fetchquest stream` does one file at a time — pull, sync, delete local copy — so it works fine on machines with limited disk. `fetchquest sync` pulls everything first, then syncs.
 
-`fetchquest clean` only deletes files from the Quest that are confirmed synced to *all* destinations. `--dry-run` to preview.
+`fetchquest clean` only deletes files from the Quest that are confirmed synced to *all* destinations. Pass `--any` to delete files synced to at least one destination instead. `--dry-run` to preview.
 
 Original file timestamps are preserved.
 
@@ -89,7 +89,7 @@ Original file timestamps are preserved.
 - Works with multiple Quests — each device is tracked separately so files don't get mixed up
 - Sync to Google Drive, Dropbox, NAS, S3, or any of the [70+ backends rclone supports](https://rclone.org/overview/), and you can sync to more than one at a time
 - Streaming mode pulls and syncs one file at a time, so you don't need much local disk space
-- `fetchquest clean` won't delete anything from the Quest unless it's been synced to every destination you've configured
+- `fetchquest clean` won't delete anything from the Quest unless it's been synced to every destination you've configured (or at least one, with `--any`)
 - Keeps track of what's already been synced so it doesn't transfer the same file twice
 - Preserves the original recording timestamps on synced files
 - The sync manifest is automatically backed up to your destinations — restore it with `fetchquest config restore` if you lose your local config

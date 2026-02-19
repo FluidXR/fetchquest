@@ -165,6 +165,31 @@ func (m *DB) GetFullySyncedFiles(deviceSerial string, destinations []string) ([]
 	return entries, rows.Err()
 }
 
+// GetAnySyncedFiles returns files synced to at least one destination for a device.
+func (m *DB) GetAnySyncedFiles(deviceSerial string) ([]Entry, error) {
+	rows, err := m.db.Query(
+		`SELECT f.id, f.device_serial, f.remote_path, f.local_path, f.size, f.mtime
+		 FROM files f
+		 WHERE f.device_serial = ?
+		   AND (SELECT COUNT(*) FROM dest_syncs ds WHERE ds.file_id = f.id) >= 1`,
+		deviceSerial,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("get any synced: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []Entry
+	for rows.Next() {
+		var e Entry
+		if err := rows.Scan(&e.ID, &e.DeviceSerial, &e.RemotePath, &e.LocalPath, &e.Size, &e.MTime); err != nil {
+			return nil, fmt.Errorf("scan any synced: %w", err)
+		}
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
+}
+
 // DeviceStats returns sync statistics for a device.
 type DeviceStats struct {
 	TotalFiles  int
