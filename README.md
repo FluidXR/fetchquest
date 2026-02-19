@@ -79,7 +79,8 @@ Original file timestamps are preserved.
 | `fetchquest sync` | Pull all, then sync to all destinations |
 | `fetchquest pull` | Pull media from Quest to local directory |
 | `fetchquest push` | Sync local media to destinations |
-| `fetchquest clean` | Delete synced media from Quest (`--local` for local dir) |
+| `fetchquest clean` | Delete synced media from Quest |
+| `fetchquest clean --local` | Delete local files that have already been synced to destinations |
 | `fetchquest devices` | List connected Quests and sync stats |
 | `fetchquest config` | View/manage config |
 | `fetchquest config add-dest` | Add a destination (interactive) |
