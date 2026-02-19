@@ -7,8 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Version is set at build time via ldflags.
-var Version = "dev"
+// Version of FetchQuest.
+const Version = "0.1.0"
 
 var rootCmd = &cobra.Command{
 	Use:     "fetchquest",
