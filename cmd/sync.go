@@ -16,8 +16,9 @@ import (
 var syncDevice string
 
 var syncCmd = &cobra.Command{
-	Use:   "sync",
-	Short: "Pull media from Quest(s) then push to destination(s)",
+	Use:               "sync",
+	Short:             "Pull media from Quest(s) then push to destination(s)",
+	PersistentPreRunE: requireDeps(),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
 		if err != nil {

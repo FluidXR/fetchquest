@@ -82,7 +82,7 @@ func (s *Streamer) StreamDevice(serial string) (StreamResult, error) {
 
 			// Pull to temp location
 			mediaType := mediaTypeFromPath(mediaPath)
-			localDir := filepath.Join(syncDir, serial, mediaType)
+			localDir := filepath.Join(syncDir, mediaType)
 			if err := os.MkdirAll(localDir, 0o755); err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("mkdir %s: %v", localDir, err))
 				continue

@@ -9,7 +9,7 @@ A CLI tool that pulls videos, screenshots, and photos off Meta Quest headsets vi
 - **Multiple destinations** — sync to Google Drive, SMB/NAS, S3, or any rclone-supported backend
 - **Smart deduplication** — SQLite manifest tracks every file so nothing gets synced twice
 - **Safe cleanup** — only deletes files from Quest after confirming they've reached ALL destinations
-- **Timestamp preservation** — original recording dates are preserved on synced files
+- **File metadata preservation** — original creation/modification dates from the Quest are preserved on local and remote copies, so your files sort correctly by recording date
 - **Manifest backup** — manifest DB is automatically backed up to your destinations
 
 ## Prerequisites
@@ -18,10 +18,22 @@ A CLI tool that pulls videos, screenshots, and photos off Meta Quest headsets vi
 - [ADB](https://developer.android.com/tools/adb) (Android Debug Bridge)
 - [rclone](https://rclone.org/install/) (for cloud/NAS uploads)
 
-### Install prerequisites on macOS
+### Install prerequisites
 
+**macOS:**
 ```bash
 brew install android-platform-tools rclone
+```
+
+**Windows:**
+- ADB: Download [Android SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools) and add to PATH
+- rclone: `winget install Rclone.Rclone` or download from [rclone.org](https://rclone.org/install/)
+
+**Linux:**
+```bash
+sudo apt install android-tools-adb   # Debian/Ubuntu
+sudo pacman -S android-tools         # Arch
+curl https://rclone.org/install.sh | sudo bash
 ```
 
 ## Building
@@ -36,6 +48,21 @@ Or install directly:
 
 ```bash
 go install github.com/FluidXR/fetchquest@latest
+```
+
+### Cross-compile
+
+FetchQuest is pure Go with no CGO dependencies, so cross-compiling is straightforward:
+
+```bash
+# Windows
+GOOS=windows GOARCH=amd64 go build -o fetchquest.exe .
+
+# Linux
+GOOS=linux GOARCH=amd64 go build -o fetchquest-linux .
+
+# Linux (ARM, e.g. Raspberry Pi)
+GOOS=linux GOARCH=arm64 go build -o fetchquest-linux-arm64 .
 ```
 
 ## Quick Start

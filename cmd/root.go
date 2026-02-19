@@ -14,6 +14,18 @@ var rootCmd = &cobra.Command{
 via ADB, stores them locally, then syncs them to cloud/NAS destinations via rclone.`,
 }
 
+// requireDeps returns a PersistentPreRunE that checks for external dependencies
+// and prompts to nickname any new devices.
+func requireDeps() func(cmd *cobra.Command, args []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		if err := checkDeps(); err != nil {
+			return err
+		}
+		checkNewDevices()
+		return nil
+	}
+}
+
 // Execute runs the root command.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {

@@ -2,8 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/FluidXR/fetchquest/internal/config"
+	"github.com/FluidXR/fetchquest/internal/rclone"
 
 	"github.com/spf13/cobra"
 )
@@ -169,11 +173,87 @@ var configSetWiFiCmd = &cobra.Command{
 	},
 }
 
+var configRestoreCmd = &cobra.Command{
+	Use:   "restore [destination-name]",
+	Short: "Restore manifest DB from a backup on a destination",
+	Long: `Downloads the manifest DB backup from a configured rclone destination.
+If no destination is specified, tries each one until a backup is found.
+
+Example: fetchquest config restore my-nas`,
+	Args: cobra.MaximumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cfg, err := config.Load()
+		if err != nil {
+			return err
+		}
+		if len(cfg.Destinations) == 0 {
+			return fmt.Errorf("no destinations configured — add one with 'fetchquest config add-dest' first")
+		}
+
+		rc := rclone.NewClient()
+		configDir := config.ConfigDir()
+		localDB := filepath.Join(configDir, "manifest.db")
+
+		// Check if local manifest already exists
+		if _, err := os.Stat(localDB); err == nil {
+			fmt.Printf("Warning: local manifest already exists at %s\n", localDB)
+			fmt.Print("Overwrite? [y/N] ")
+			var answer string
+			fmt.Scanln(&answer)
+			answer = strings.TrimSpace(strings.ToLower(answer))
+			if answer != "y" && answer != "yes" {
+				fmt.Println("Aborted.")
+				return nil
+			}
+		}
+
+		// Determine which destinations to try
+		var dests []config.Destination
+		if len(args) > 0 {
+			name := args[0]
+			for _, d := range cfg.Destinations {
+				if d.Name == name {
+					dests = append(dests, d)
+					break
+				}
+			}
+			if len(dests) == 0 {
+				return fmt.Errorf("destination %q not found in config", name)
+			}
+		} else {
+			dests = cfg.Destinations
+		}
+
+		if err := os.MkdirAll(configDir, 0o755); err != nil {
+			return fmt.Errorf("create config dir: %w", err)
+		}
+
+		for _, dest := range dests {
+			remote := dest.RcloneRemote
+			if !strings.HasSuffix(remote, "/") {
+				remote += "/"
+			}
+			remote += ".fetchquest/manifest.db"
+
+			fmt.Printf("Trying %s (%s)...\n", dest.Name, remote)
+			if err := rc.CopyFrom(remote, localDB); err != nil {
+				fmt.Printf("  Not found or failed: %v\n", err)
+				continue
+			}
+			fmt.Printf("Manifest restored from %s to %s\n", dest.Name, localDB)
+			return nil
+		}
+
+		return fmt.Errorf("no manifest backup found on any destination")
+	},
+}
+
 func init() {
 	configCmd.AddCommand(configInitCmd)
 	configCmd.AddCommand(configNicknameCmd)
 	configCmd.AddCommand(configAddDestCmd)
 	configCmd.AddCommand(configRemoveDestCmd)
 	configCmd.AddCommand(configSetWiFiCmd)
+	configCmd.AddCommand(configRestoreCmd)
 	rootCmd.AddCommand(configCmd)
 }

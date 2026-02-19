@@ -24,9 +24,28 @@ func (c *Client) Copy(localPath, dest string) error {
 	return nil
 }
 
+// CopyFrom downloads a remote file to a local path.
+func (c *Client) CopyFrom(remoteSrc, localDest string) error {
+	out, err := exec.Command("rclone", "copyto", remoteSrc, localDest).CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("rclone copyto %s -> %s: %w\n%s", remoteSrc, localDest, err, out)
+	}
+	return nil
+}
+
+// excludeFlags returns rclone flags to skip macOS/Windows junk files.
+var excludeFlags = []string{
+	"--exclude", ".DS_Store",
+	"--exclude", "._*",
+	"--exclude", "Thumbs.db",
+	"--exclude", "desktop.ini",
+}
+
 // CopyDir uploads a local directory to an rclone remote destination.
 func (c *Client) CopyDir(localDir, dest string) error {
-	out, err := exec.Command("rclone", "copy", localDir, dest).CombinedOutput()
+	args := append([]string{"copy"}, excludeFlags...)
+	args = append(args, localDir, dest)
+	out, err := exec.Command("rclone", args...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("rclone copy %s -> %s: %w\n%s", localDir, dest, err, out)
 	}

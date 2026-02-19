@@ -16,8 +16,9 @@ import (
 var streamDevice string
 
 var streamCmd = &cobra.Command{
-	Use:   "stream",
-	Short: "One-file-at-a-time: pull -> push -> delete local copy",
+	Use:               "stream",
+	Short:             "One-file-at-a-time: pull -> push -> delete local copy",
+	PersistentPreRunE: requireDeps(),
 	Long: `Streaming mode for machines with limited disk space.
 Pulls one file at a time from Quest, uploads to all destinations,
 then deletes the local copy before moving to the next file.`,

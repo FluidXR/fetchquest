@@ -20,8 +20,9 @@ var (
 )
 
 var cleanCmd = &cobra.Command{
-	Use:   "clean",
-	Short: "Delete already-synced media from Quest(s)",
+	Use:               "clean",
+	Short:             "Delete already-synced media from Quest(s)",
+	PersistentPreRunE: requireDeps(),
 	Long: `Removes files from Quest that have been confirmed synced to ALL configured destinations.
 Shows a dry-run summary first unless --confirm is passed.`,
 	RunE: func(cmd *cobra.Command, args []string) error {

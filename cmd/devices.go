@@ -11,8 +11,9 @@ import (
 )
 
 var devicesCmd = &cobra.Command{
-	Use:   "devices",
-	Short: "List connected Quests and their sync status",
+	Use:               "devices",
+	Short:             "List connected Quests and their sync status",
+	PersistentPreRunE: requireDeps(),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
 		if err != nil {

@@ -13,8 +13,9 @@ import (
 )
 
 var pushCmd = &cobra.Command{
-	Use:   "push",
-	Short: "Upload local media to rclone destination(s)",
+	Use:               "push",
+	Short:             "Upload local media to rclone destination(s)",
+	PersistentPreRunE: requireDeps(),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
 		if err != nil {

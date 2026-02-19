@@ -73,9 +73,9 @@ func (p *Puller) PullDevice(serial string) (PullResult, error) {
 				continue
 			}
 
-			// Determine local path: sync_dir/serial/MediaType/filename
+			// Determine local path: sync_dir/MediaType/filename
 			mediaType := mediaTypeFromPath(mediaPath)
-			localDir := filepath.Join(syncDir, serial, mediaType)
+			localDir := filepath.Join(syncDir, mediaType)
 			if err := os.MkdirAll(localDir, 0o755); err != nil {
 				result.Errors = append(result.Errors, fmt.Sprintf("mkdir %s: %v", localDir, err))
 				continue

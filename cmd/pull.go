@@ -15,8 +15,9 @@ import (
 var pullDevice string
 
 var pullCmd = &cobra.Command{
-	Use:   "pull",
-	Short: "Pull media from Quest(s) to local sync directory",
+	Use:               "pull",
+	Short:             "Pull media from Quest(s) to local sync directory",
+	PersistentPreRunE: requireDeps(),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfg, err := config.Load()
 		if err != nil {

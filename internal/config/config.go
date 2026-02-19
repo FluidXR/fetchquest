@@ -32,7 +32,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	home, _ := os.UserHomeDir()
 	return &Config{
-		SyncDir: filepath.Join(home, "QuestMedia"),
+		SyncDir: filepath.Join(home, "FetchQuest"),
 		MediaPaths: []string{
 			"/sdcard/Oculus/VideoShots/",
 			"/sdcard/Oculus/Screenshots/",
