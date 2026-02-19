@@ -286,19 +286,33 @@ func browseRemoteFolder(reader *bufio.Reader, remoteName, startPath string) (str
 	}
 }
 
+const localDestSentinel = "__local__"
+
 func interactiveAddDest(reader *bufio.Reader) (string, string, error) {
 	fmt.Println("\nWhat type of destination?")
+	fmt.Printf("  1. Local folder — Save to a directory on this computer\n")
 	for i, p := range destPresets {
-		fmt.Printf("  %d. %s — %s\n", i+1, p.name, p.description)
+		fmt.Printf("  %d. %s — %s\n", i+2, p.name, p.description)
 	}
-	fmt.Printf("  %d. Other (I'll provide the rclone remote string)\n", len(destPresets)+1)
+	fmt.Printf("  %d. Other (I'll provide the rclone remote string)\n", len(destPresets)+2)
 	fmt.Print("\nChoice: ")
 
 	choice, _ := reader.ReadString('\n')
 	choice = strings.TrimSpace(choice)
 
+	// Local folder option
+	if choice == "1" {
+		fmt.Print("  Folder path (default: ~/FetchQuest): ")
+		path, _ := reader.ReadString('\n')
+		path = strings.TrimSpace(path)
+		if path == "" {
+			path = "~/FetchQuest"
+		}
+		return localDestSentinel, path, nil
+	}
+
 	// "Other" option
-	if choice == fmt.Sprintf("%d", len(destPresets)+1) {
+	if choice == fmt.Sprintf("%d", len(destPresets)+2) {
 		fmt.Print("Destination name: ")
 		name, _ := reader.ReadString('\n')
 		name = strings.TrimSpace(name)
@@ -314,13 +328,14 @@ func interactiveAddDest(reader *bufio.Reader) (string, string, error) {
 		return name, remote, nil
 	}
 
-	// Parse preset choice
+	// Parse preset choice (offset by 1 because local folder is option 1)
 	idx := 0
 	fmt.Sscanf(choice, "%d", &idx)
-	if idx < 1 || idx > len(destPresets) {
+	idx -= 2 // adjust for local folder being option 1
+	if idx < 0 || idx >= len(destPresets) {
 		return "", "", fmt.Errorf("invalid choice")
 	}
-	preset := destPresets[idx-1]
+	preset := destPresets[idx]
 
 	remoteName := preset.remoteName
 	fmt.Printf("\nSetting up %s...\n", preset.name)
@@ -473,6 +488,17 @@ Or provide name and rclone remote directly:
 		if err != nil {
 			return err
 		}
+
+		// Local folder — set sync_dir instead of adding a destination
+		if name == localDestSentinel {
+			cfg.SyncDir = remote
+			if err := config.Save(cfg); err != nil {
+				return err
+			}
+			fmt.Printf("\nLocal sync directory set to: %s\n", remote)
+			return nil
+		}
+
 		for _, d := range cfg.Destinations {
 			if d.Name == name {
 				return fmt.Errorf("destination %q already exists", name)
