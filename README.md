@@ -3,10 +3,10 @@
 Fetches the recordings and screenshots from your Meta Quest and syncs them to your computer or cloud/network storage to free up space on your headset. Works with Google Drive, Dropbox, NASes running SMB, and more.
 
 ```bash
-fetchquest stream
+fetchquest sync
 ```
 
-To use FetchQuest, plug in your Quest via USB and run `fetchquest stream`. It pulls each file off the headset one at a time and syncs it to all of your configured destinations. Once everything is synced, you can run `fetchquest clean` to delete the files from the Quest. It checks the manifest first and only deletes files that have made it to all your destinations.
+To use FetchQuest, plug in your Quest via USB and run `fetchquest sync`. It pulls each file off the headset one at a time and syncs it to all of your configured destinations. Once everything is synced, you can run `fetchquest clean` to delete the files from the Quest. It checks the manifest first and only deletes files that have made it to all your destinations.
 
 ## Install
 
@@ -41,7 +41,7 @@ Walks you through connecting Google Drive, Dropbox, a NAS, or S3. You can paste 
 **3. Sync:**
 
 ```bash
-fetchquest stream
+fetchquest sync
 ```
 
 **4. Free up space:**
