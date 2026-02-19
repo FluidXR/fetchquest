@@ -12,11 +12,11 @@ To use FetchQuest, plug in your Quest via USB and run `fetchquest sync`. It pull
 
 Grab a binary from [**Releases**](https://github.com/FluidXR/fetchquest/releases):
 
-| Platform | File |
-|----------|------|
-| macOS (Apple Silicon) | `fetchquest-x.x.x-darwin-arm64.tar.gz` |
-| Linux (x86_64) | `fetchquest-x.x.x-linux-amd64.tar.gz` |
-| Windows (x86_64) | `fetchquest-x.x.x-windows-amd64.zip` |
+| Platform | Download |
+|----------|----------|
+| macOS (Apple Silicon) | [fetchquest-0.4.0-darwin-arm64.tar.gz](https://github.com/FluidXR/fetchquest/releases/download/v0.4.0/fetchquest-0.4.0-darwin-arm64.tar.gz) |
+| Linux (x86_64) | [fetchquest-0.4.0-linux-amd64.tar.gz](https://github.com/FluidXR/fetchquest/releases/download/v0.4.0/fetchquest-0.4.0-linux-amd64.tar.gz) |
+| Windows (x86_64) | [fetchquest-0.4.0-windows-amd64.zip](https://github.com/FluidXR/fetchquest/releases/download/v0.4.0/fetchquest-0.4.0-windows-amd64.zip) |
 
 Extract it, put it on your PATH. It'll prompt you to install ADB and rclone on first run if they're missing.
 
