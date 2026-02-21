@@ -311,6 +311,11 @@ func interactiveAddDest(reader *bufio.Reader) (string, string, error) {
 		return localDestSentinel, path, nil
 	}
 
+	// Everything below here needs rclone
+	if _, err := exec.LookPath("rclone"); err != nil {
+		return "", "", fmt.Errorf("rclone is not installed — install it first (https://rclone.org/install/)")
+	}
+
 	// "Other" option
 	if choice == fmt.Sprintf("%d", len(destPresets)+2) {
 		fmt.Print("Destination name: ")
@@ -471,6 +476,10 @@ Or provide name and rclone remote directly:
 		var name, remote string
 
 		if len(args) == 2 {
+			// Direct args — check rclone is available
+			if _, err := exec.LookPath("rclone"); err != nil {
+				return fmt.Errorf("rclone is not installed — install it first (https://rclone.org/install/)")
+			}
 			name = args[0]
 			remote = args[1]
 		} else if len(args) == 0 {
