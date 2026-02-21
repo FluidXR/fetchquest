@@ -1,9 +1,11 @@
 package rclone
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 // Client wraps rclone command-line calls.
@@ -61,6 +63,14 @@ func (c *Client) Check(localPath, dest string) error {
 		return fmt.Errorf("rclone check: %w\n%s", err, out)
 	}
 	return nil
+}
+
+// IsReachable checks if a remote destination is reachable with a short timeout.
+func (c *Client) IsReachable(remote string) bool {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	err := exec.CommandContext(ctx, "rclone", "lsd", remote, "--max-depth", "0").Run()
+	return err == nil
 }
 
 // ListRemotes returns configured rclone remotes.

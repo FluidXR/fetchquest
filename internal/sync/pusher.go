@@ -29,6 +29,16 @@ type PushResult struct {
 func (p *Pusher) PushAll() ([]PushResult, error) {
 	var results []PushResult
 	for _, dest := range p.Config.Destinations {
+		fmt.Printf("Checking %s... ", dest.Name)
+		if !p.Rclone.IsReachable(dest.RcloneRemote) {
+			fmt.Printf("unreachable, skipping\n")
+			results = append(results, PushResult{
+				Destination: dest.Name,
+				Errors:      []string{"destination unreachable"},
+			})
+			continue
+		}
+		fmt.Printf("ok\n")
 		r, err := p.PushToDest(dest)
 		if err != nil {
 			results = append(results, PushResult{

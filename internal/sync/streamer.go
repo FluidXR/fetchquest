@@ -56,6 +56,21 @@ func (s *Streamer) StreamAll() ([]StreamResult, error) {
 func (s *Streamer) StreamDevice(serial string) (StreamResult, error) {
 	result := StreamResult{DeviceSerial: serial}
 
+	// Pre-check which destinations are reachable
+	var reachableDests []config.Destination
+	for _, dest := range s.Config.Destinations {
+		fmt.Printf("Checking %s... ", dest.Name)
+		if s.Rclone.IsReachable(dest.RcloneRemote) {
+			fmt.Printf("ok\n")
+			reachableDests = append(reachableDests, dest)
+		} else {
+			fmt.Printf("unreachable, skipping\n")
+		}
+	}
+	if len(reachableDests) == 0 {
+		return result, fmt.Errorf("no destinations are reachable")
+	}
+
 	var baseDir string
 	var cleanupDir string
 	if s.SkipLocal {
@@ -72,10 +87,13 @@ func (s *Streamer) StreamDevice(serial string) (StreamResult, error) {
 		defer os.RemoveAll(cleanupDir)
 	}
 
+	// Use only reachable destinations for pushing
+	streamConfig := *s.Config
+	streamConfig.Destinations = reachableDests
 	pusher := &Pusher{
 		Rclone:   s.Rclone,
 		Manifest: s.Manifest,
-		Config:   s.Config,
+		Config:   &streamConfig,
 	}
 
 	for _, mediaPath := range s.Config.MediaPaths {
