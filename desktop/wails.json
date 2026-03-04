@@ -1,0 +1,11 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "FetchQuest",
+  "outputfilename": "FetchQuest",
+  "frontend:dir": "frontend",
+  "wailsjsdir": "frontend",
+  "author": {
+    "name": "FluidXR",
+    "email": ""
+  }
+}

@@ -1,0 +1,14 @@
+# Compiled binaries
+FetchQuest
+fetchquest
+
+# Wails build output
+desktop/build/bin/
+desktop/desktop/
+
+# Wails generated bindings
+desktop/frontend/wailsjs/
+
+# Reference images (not app assets)
+/Background.png
+/Fetchquest_logo.png

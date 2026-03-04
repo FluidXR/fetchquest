@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FetchQuest</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-brand">FQ<span class="brand-star">&#9733;</span></div>
+        <button class="nav-item active" data-view="sync" title="Sync">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+          <span class="nav-label">Sync</span>
+        </button>
+        <button class="nav-item" data-view="files" title="Files">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+          <span class="nav-label">Files</span>
+        </button>
+        <button class="nav-item" data-view="destinations" title="Places">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
+          <span class="nav-label">Places</span>
+        </button>
+        <button class="nav-item" data-view="settings" title="Settings">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          <span class="nav-label">Settings</span>
+        </button>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="device-indicator" id="device-indicator" title="No device connected">
+          <span class="device-dot offline"></span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Content area -->
+    <main class="content">
+      <div class="app-title">Fetchquest<span class="app-subtitle">The hero's backup companion</span></div>
+
+      <!-- ═══ SYNC VIEW ═══ -->
+      <div id="view-sync" class="view">
+        <div class="view-header">
+          <h2 class="view-title">Sync</h2>
+          <button id="refresh-btn" type="button" class="btn-text">Refresh</button>
+        </div>
+
+        <!-- Device card -->
+        <div id="device-card" class="card" style="display:flex;flex-direction:column">
+          <div class="card-label">Adventurer</div>
+          <div style="display:flex;align-items:flex-end">
+            <div id="devices-list" aria-live="polite" style="flex:1">
+              <p class="text-muted">Checking for headset...</p>
+            </div>
+            <button id="clean-btn" type="button" class="btn-text" style="flex-shrink:0;align-self:flex-end">Clean Quest</button>
+          </div>
+        </div>
+
+        <!-- Missing deps warning -->
+        <div id="missing-deps" class="card card-warning" hidden></div>
+
+        <!-- Sync summary / preview -->
+        <div id="sync-summary" class="card" hidden>
+          <div class="card-label">Ready to sync</div>
+          <div id="sync-summary-content"></div>
+        </div>
+
+        <!-- Sync progress -->
+        <div id="sync-progress" class="card" hidden>
+          <div class="card-label" id="sync-phase-label">Syncing...</div>
+          <div class="progress-bar"><div class="progress-fill" id="sync-progress-fill"></div></div>
+          <div class="progress-detail">
+            <span id="sync-progress-count"></span>
+            <span id="sync-progress-file" class="text-muted"></span>
+          </div>
+        </div>
+
+        <!-- Sync results -->
+        <div id="sync-results" class="card" hidden>
+          <div id="sync-results-content"></div>
+        </div>
+
+        <!-- Actions -->
+        <div class="sync-actions">
+          <button id="preview-btn" type="button" class="btn-secondary" disabled>Scout Ahead</button>
+          <button id="sync-btn" type="button" class="btn-primary" disabled>Begin Quest!</button>
+        </div>
+        <p id="sync-status" class="sync-status" aria-live="polite"></p>
+      </div>
+
+      <!-- ═══ FILES VIEW ═══ -->
+      <div id="view-files" class="view" hidden>
+        <div class="view-header">
+          <h2 class="view-title">Files</h2>
+          <button id="open-folder-btn" type="button" class="btn-text">Open folder</button>
+        </div>
+
+        <div class="tab-bar">
+          <button class="tab active" data-tab="quest">Quest</button>
+          <button class="tab" data-tab="local">Local</button>
+        </div>
+
+        <div id="files-content" class="files-content">
+          <p class="text-muted">Connect your Quest to browse files.</p>
+        </div>
+      </div>
+
+      <!-- ═══ DESTINATIONS VIEW ═══ -->
+      <div id="view-destinations" class="view" hidden>
+        <div class="view-header">
+          <h2 class="view-title">Places</h2>
+        </div>
+
+        <div id="dest-cards" class="dest-cards"></div>
+
+        <div class="card">
+          <div class="card-label">Add a destination</div>
+          <div id="dest-wizard" class="dest-wizard">
+            <!-- Step 1: Choose type -->
+            <div id="wiz-pick" class="wiz-step">
+              <div class="wiz-type-grid">
+                <button type="button" class="wiz-type-btn" data-type="drive">Google Drive</button>
+                <button type="button" class="wiz-type-btn" data-type="dropbox">Dropbox</button>
+                <button type="button" class="wiz-type-btn" data-type="smb">NAS / SMB</button>
+                <button type="button" class="wiz-type-btn" data-type="other">Other</button>
+              </div>
+            </div>
+
+            <!-- Step 2a: OAuth -->
+            <div id="wiz-oauth" class="wiz-step" hidden>
+              <p class="wiz-heading" id="wiz-oauth-title">Connect Google Drive</p>
+              <p class="wiz-desc">Your browser will open so you can sign in and authorize access.</p>
+              <button type="button" id="wiz-oauth-btn" class="btn-primary wiz-action-btn">Authorize</button>
+              <p id="wiz-oauth-status" class="wiz-status"></p>
+              <button type="button" id="wiz-oauth-cancel" class="btn-text wiz-cancel">Cancel</button>
+            </div>
+
+            <!-- Step 2b: SMB -->
+            <div id="wiz-smb" class="wiz-step" hidden>
+              <p class="wiz-heading">Connect to network drive</p>
+              <div class="wiz-field">
+                <label class="wiz-label">Server IP or hostname</label>
+                <input type="text" id="wiz-smb-host" class="input" placeholder="e.g. 192.168.1.100">
+              </div>
+              <div class="wiz-field">
+                <label class="wiz-label">Username <span class="text-muted">(optional)</span></label>
+                <input type="text" id="wiz-smb-user" class="input">
+              </div>
+              <div class="wiz-field">
+                <label class="wiz-label">Password <span class="text-muted">(optional)</span></label>
+                <input type="password" id="wiz-smb-pass" class="input">
+              </div>
+              <div class="wiz-actions">
+                <button type="button" id="wiz-smb-btn" class="btn-text btn-add">Connect</button>
+                <button type="button" id="wiz-smb-cancel" class="btn-text wiz-cancel">Cancel</button>
+              </div>
+            </div>
+
+            <!-- Step 2c: Other -->
+            <div id="wiz-other" class="wiz-step" hidden>
+              <p class="wiz-heading">Use an existing rclone remote</p>
+              <p class="wiz-desc">Run <code>rclone config</code> in a terminal to add services, then click Refresh.</p>
+              <div class="wiz-field">
+                <label class="wiz-label">Remote</label>
+                <div class="wiz-row">
+                  <select id="wiz-other-select" class="input input-select"></select>
+                  <button type="button" id="wiz-other-refresh" class="btn-text">Refresh</button>
+                </div>
+              </div>
+              <div class="wiz-field">
+                <label class="wiz-label">Name</label>
+                <input type="text" id="wiz-other-name" class="input" placeholder="e.g. my-server">
+              </div>
+              <div class="wiz-field">
+                <label class="wiz-label">Folder</label>
+                <input type="text" id="wiz-other-folder" class="input" placeholder="FetchQuest" value="FetchQuest">
+              </div>
+              <div class="wiz-actions">
+                <button type="button" id="wiz-other-add" class="btn-text btn-add">Add destination</button>
+                <button type="button" id="wiz-other-cancel" class="btn-text wiz-cancel">Cancel</button>
+              </div>
+            </div>
+
+            <!-- Step 3: Folder -->
+            <div id="wiz-folder" class="wiz-step" hidden>
+              <p class="wiz-heading wiz-success" id="wiz-folder-title">Connected!</p>
+              <div class="wiz-field">
+                <label class="wiz-label">Folder on destination</label>
+                <div class="wiz-row">
+                  <input type="text" id="wiz-folder-input" class="input" value="FetchQuest" placeholder="FetchQuest or paste a URL">
+                  <button type="button" id="wiz-browse-btn" class="btn-text">Browse</button>
+                </div>
+              </div>
+              <div id="wiz-browser" class="wiz-browser" hidden>
+                <div class="wiz-browser-path" id="wiz-browser-path">/</div>
+                <div class="wiz-browser-list" id="wiz-browser-list"></div>
+                <div class="wiz-browser-actions">
+                  <button type="button" id="wiz-browser-up" class="btn-text">Up</button>
+                  <button type="button" id="wiz-browser-select" class="btn-text btn-add">Use this folder</button>
+                </div>
+              </div>
+              <div class="wiz-actions">
+                <button type="button" id="wiz-folder-add" class="btn-text btn-add">Add destination</button>
+                <button type="button" id="wiz-folder-cancel" class="btn-text wiz-cancel">Cancel</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ SETTINGS VIEW ═══ -->
+      <div id="view-settings" class="view" hidden>
+        <div class="view-header">
+          <h2 class="view-title">Settings</h2>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Loot Stash</div>
+          <div class="setting-row">
+            <input type="text" id="sync-dir-input" class="input" readonly placeholder="Loading...">
+            <button type="button" id="browse-sync-dir-btn" class="btn-text">Browse...</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">Devices</div>
+          <div id="settings-devices"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-label">About</div>
+          <p class="text-muted text-sm">FetchQuest v0.4.0</p>
+          <a href="https://github.com/FluidXR/fetchquest" target="_blank" rel="noopener" class="text-sm">GitHub</a>
+        </div>
+      </div>
+
+      <!-- Pixel art background -->
+      <div class="pixel-bg">
+        <img src="background.png" alt="" draggable="false">
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Clean confirmation modal -->
+  <div id="clean-modal" class="modal-overlay" hidden>
+    <div class="modal">
+      <p class="modal-title">Clean Quest</p>
+      <div id="clean-modal-body" class="modal-body"></div>
+      <div class="modal-actions">
+        <button id="clean-modal-cancel" type="button" class="btn-text">Cancel</button>
+        <button id="clean-modal-confirm" type="button" class="btn-text btn-danger">Delete Files</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+  <script src="sync.js"></script>
+  <script src="files.js"></script>
+  <script src="destinations.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>

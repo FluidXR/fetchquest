@@ -231,6 +231,36 @@ func (m *DB) GetLocalSyncedFiles(destinations []string, anyDest bool) ([]Entry, 
 	return entries, rows.Err()
 }
 
+// QueryByLocalPath returns all file entries with the given local_path.
+func (m *DB) QueryByLocalPath(localPath string) ([]Entry, error) {
+	rows, err := m.db.Query(
+		`SELECT id, device_serial, remote_path, local_path, size, mtime FROM files WHERE local_path = ?`,
+		localPath,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query by local path: %w", err)
+	}
+	defer rows.Close()
+
+	var entries []Entry
+	for rows.Next() {
+		var e Entry
+		if err := rows.Scan(&e.ID, &e.DeviceSerial, &e.RemotePath, &e.LocalPath, &e.Size, &e.MTime); err != nil {
+			return nil, fmt.Errorf("scan: %w", err)
+		}
+		entries = append(entries, e)
+	}
+	return entries, rows.Err()
+}
+
+// CountSyncedTo counts the number of files synced to a given destination.
+func (m *DB) CountSyncedTo(destination string, count *int) error {
+	return m.db.QueryRow(
+		`SELECT COUNT(DISTINCT file_id) FROM dest_syncs WHERE destination = ?`,
+		destination,
+	).Scan(count)
+}
+
 // DeviceStats returns sync statistics for a device.
 type DeviceStats struct {
 	TotalFiles  int

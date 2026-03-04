@@ -20,11 +20,22 @@ Grab a binary from [**Releases**](https://github.com/FluidXR/fetchquest/releases
 
 Extract it, put it on your PATH. It'll prompt you to install ADB and rclone on first run if they're missing.
 
-Or with Go 1.24+:
+Or with Go 1.21+:
 
 ```bash
 go install github.com/FluidXR/fetchquest@latest
 ```
+
+**Building from source** requires **Go 1.21 or newer**. If you see `package cmp is not in GOROOT` or `package slices is not in GOROOT`, your `go` is too old. Install a newer Go:
+
+```bash
+# Linux: install Go 1.24 to ~/.local (no sudo)
+curl -sL https://go.dev/dl/go1.24.4.linux-amd64.tar.gz | tar -C "$HOME/.local" -xzf -
+export PATH="$HOME/.local/go/bin:$PATH"
+go version   # should show go1.24.4
+```
+
+Then run `go build` from the repo root.
 
 ## Quick Start
 
@@ -51,6 +62,19 @@ fetchquest clean
 ```
 
 That's it. Run `fetchquest sync` whenever you plug in.
+
+## Desktop app (GUI)
+
+A graphical app is available for Windows, macOS, and Linux so you can sync without using the terminal.
+
+- **Run the app:** Double-click **FetchQuest** (or run `FetchQuest.exe` on Windows). You’ll see your connected headset and a **Sync my Quest** button.
+- **First-time setup:** You still need to add at least one destination once (e.g. a folder or cloud). Do that from the command line: `fetchquest config add-dest`, then use the app for daily syncs.
+- **Build the GUI from source:** You need [Go 1.21+](https://go.dev/dl/) and the [Wails CLI](https://wails.io/docs/gettingstarted/installation) (`go install github.com/wailsapp/wails/v2/cmd/wails@latest`). On **Linux**, install WebKitGTK first: `sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev` (Ubuntu/Debian), or `libwebkit2gtk-4.1-dev` then `wails build -tags webkit2_41`. Then:
+  ```bash
+  cd desktop
+  wails build
+  ```
+  The built app will be in `desktop/build/bin/`.
 
 <details>
 <summary><b>Or add a destination manually</b></summary>
@@ -95,6 +119,7 @@ Original file timestamps are preserved.
 - Preserves the original recording timestamps on synced files
 - The sync manifest is automatically backed up to your destinations — restore it with `fetchquest config restore` if you lose your local config
 - Single binary for macOS, Linux, and Windows
+- **Desktop GUI** — same sync workflow in a windowed app (no terminal required)
 
 ## Config
 
@@ -118,13 +143,17 @@ media_paths:
 
 ## Building from Source
 
+**CLI only:**
+
 ```bash
 git clone https://github.com/FluidXR/fetchquest.git
 cd fetchquest
 go build -o fetchquest .
 ```
 
-Cross-compile:
+**Desktop app (GUI):** See [Desktop app (GUI)](#desktop-app-gui) above for Wails build steps.
+
+Cross-compile CLI:
 
 ```bash
 GOOS=windows GOARCH=amd64 go build -o fetchquest.exe .
