@@ -490,7 +490,8 @@ type SyncProgress struct {
 
 // Sync runs a full sync (pull from all devices, push to all destinations)
 // with progress events emitted to the frontend.
-func (a *App) Sync() (string, error) {
+// If skipLocal is true, files are pulled to a temp dir, pushed, then deleted locally.
+func (a *App) Sync(skipLocal bool) (string, error) {
 	cfg, err := config.Load()
 	if err != nil {
 		return "", fmt.Errorf("load config: %w", err)
@@ -551,12 +552,24 @@ func (a *App) Sync() (string, error) {
 	totalPulled := 0
 	syncDir := cfg.ExpandSyncDir()
 
+	// In skip-local mode, pull to a temp dir instead
+	var tmpDir string
+	pullDir := syncDir
+	if skipLocal {
+		tmpDir, err = os.MkdirTemp("", "fetchquest-stream-*")
+		if err != nil {
+			return "", fmt.Errorf("create temp dir: %w", err)
+		}
+		defer os.RemoveAll(tmpDir)
+		pullDir = tmpDir
+	}
+
 	for i, pf := range toPull {
 		fname := filepath.Base(pf.info.Path)
 		emit(SyncProgress{Phase: "pull", File: fname, Current: i + 1, Total: len(toPull), FilePercent: 0})
 
 		mediaType := classifyMediaPath(pf.mediaPath)
-		localDir := filepath.Join(syncDir, mediaType)
+		localDir := filepath.Join(pullDir, mediaType)
 		if err := os.MkdirAll(localDir, 0o755); err != nil {
 			continue
 		}
@@ -586,79 +599,131 @@ func (a *App) Sync() (string, error) {
 				}
 			}
 		}()
-		err := cmd.Wait()
+		pullErr := cmd.Wait()
 		close(done)
-		if err != nil {
+		if pullErr != nil {
 			continue
 		}
 
 		emit(SyncProgress{Phase: "pull", File: fname, Current: i + 1, Total: len(toPull), FilePercent: 100})
 		_ = os.Chtimes(localPath, pf.info.MTime, pf.info.MTime)
 
-		if _, err := db.RecordPull(pf.serial, pf.info.Path, localPath, pf.info.Size, pf.info.MTime.Unix()); err != nil {
+		// In skip-local mode, record empty local path (temp file will be cleaned up)
+		manifestLocalPath := localPath
+		if skipLocal {
+			manifestLocalPath = ""
+		}
+		fileID, err := db.RecordPull(pf.serial, pf.info.Path, manifestLocalPath, pf.info.Size, pf.info.MTime.Unix())
+		if err != nil {
 			continue
 		}
+
+		// In skip-local mode, push immediately after pulling each file
+		if skipLocal {
+			for _, dest := range cfg.Destinations {
+				if rc == nil || !rc.IsReachable(dest.RcloneRemote) {
+					continue
+				}
+				mediaType := classifyMediaPath(pf.mediaPath)
+				remoteDest := dest.RcloneRemote
+				if !strings.HasSuffix(remoteDest, "/") {
+					remoteDest += "/"
+				}
+				remoteDest += mediaType + "/" + fname
+
+				pushCmd := exec.Command("rclone", "copyto",
+					"--stats-one-line", "--stats", "1s",
+					"--stats-log-level", "NOTICE", "--log-level", "NOTICE",
+					localPath, remoteDest)
+				pStderr, _ := pushCmd.StderrPipe()
+				if err := pushCmd.Start(); err != nil {
+					continue
+				}
+				var wg gosync.WaitGroup
+				wg.Add(1)
+				go func(r io.Reader, idx int, total int, name string) {
+					defer wg.Done()
+					scanner := bufio.NewScanner(r)
+					for scanner.Scan() {
+						line := scanner.Text()
+						if pct := parseRclonePercent(line); pct >= 0 {
+							emit(SyncProgress{Phase: "push", File: name, Current: idx, Total: total, FilePercent: pct})
+						}
+					}
+				}(pStderr, i+1, len(toPull), fname)
+				wg.Wait()
+				if err := pushCmd.Wait(); err != nil {
+					continue
+				}
+				_ = db.RecordDestSync(fileID, dest.Name)
+			}
+			// Delete temp file after pushing
+			os.Remove(localPath)
+		}
+
 		totalPulled++
 	}
 
-	// ── Phase 2: Push ──
+	// ── Phase 2: Push (only in normal mode — skip-local pushes inline above) ──
 
 	totalPushed := 0
-	for _, dest := range cfg.Destinations {
-		if rc == nil || !rc.IsReachable(dest.RcloneRemote) {
-			continue
-		}
-		unpushed, err := db.GetUnpushedFiles(dest.Name)
-		if err != nil || len(unpushed) == 0 {
-			continue
-		}
-
-		for i, entry := range unpushed {
-			if entry.LocalPath == "" {
+	if !skipLocal {
+		for _, dest := range cfg.Destinations {
+			if rc == nil || !rc.IsReachable(dest.RcloneRemote) {
 				continue
 			}
-			fname := filepath.Base(entry.LocalPath)
-			emit(SyncProgress{Phase: "push", File: fname, Current: i + 1, Total: len(unpushed), FilePercent: 0})
-
-			relPath, err := filepath.Rel(syncDir, entry.LocalPath)
-			if err != nil {
-				relPath = fname
-			}
-			remoteDest := dest.RcloneRemote
-			if !strings.HasSuffix(remoteDest, "/") {
-				remoteDest += "/"
-			}
-			remoteDest += filepath.ToSlash(relPath)
-
-			// Run rclone with stats as log lines to stderr (not -P which needs a terminal)
-			cmd := exec.Command("rclone", "copyto",
-				"--stats-one-line", "--stats", "1s",
-				"--stats-log-level", "NOTICE", "--log-level", "NOTICE",
-				entry.LocalPath, remoteDest)
-			stderr, _ := cmd.StderrPipe()
-			if err := cmd.Start(); err != nil {
+			unpushed, err := db.GetUnpushedFiles(dest.Name)
+			if err != nil || len(unpushed) == 0 {
 				continue
 			}
-			// Must drain stderr BEFORE cmd.Wait() per Go docs
-			var wg gosync.WaitGroup
-			wg.Add(1)
-			go func(r io.Reader, idx int, total int, name string) {
-				defer wg.Done()
-				scanner := bufio.NewScanner(r)
-				for scanner.Scan() {
-					line := scanner.Text()
-					if pct := parseRclonePercent(line); pct >= 0 {
-						emit(SyncProgress{Phase: "push", File: name, Current: idx, Total: total, FilePercent: pct})
-					}
+
+			for i, entry := range unpushed {
+				if entry.LocalPath == "" {
+					continue
 				}
-			}(stderr, i+1, len(unpushed), fname)
-			wg.Wait()
-			if err := cmd.Wait(); err != nil {
-				continue
+				fname := filepath.Base(entry.LocalPath)
+				emit(SyncProgress{Phase: "push", File: fname, Current: i + 1, Total: len(unpushed), FilePercent: 0})
+
+				relPath, err := filepath.Rel(syncDir, entry.LocalPath)
+				if err != nil {
+					relPath = fname
+				}
+				remoteDest := dest.RcloneRemote
+				if !strings.HasSuffix(remoteDest, "/") {
+					remoteDest += "/"
+				}
+				remoteDest += filepath.ToSlash(relPath)
+
+				// Run rclone with stats as log lines to stderr (not -P which needs a terminal)
+				cmd := exec.Command("rclone", "copyto",
+					"--stats-one-line", "--stats", "1s",
+					"--stats-log-level", "NOTICE", "--log-level", "NOTICE",
+					entry.LocalPath, remoteDest)
+				stderr, _ := cmd.StderrPipe()
+				if err := cmd.Start(); err != nil {
+					continue
+				}
+				// Must drain stderr BEFORE cmd.Wait() per Go docs
+				var wg gosync.WaitGroup
+				wg.Add(1)
+				go func(r io.Reader, idx int, total int, name string) {
+					defer wg.Done()
+					scanner := bufio.NewScanner(r)
+					for scanner.Scan() {
+						line := scanner.Text()
+						if pct := parseRclonePercent(line); pct >= 0 {
+							emit(SyncProgress{Phase: "push", File: name, Current: idx, Total: total, FilePercent: pct})
+						}
+					}
+				}(stderr, i+1, len(unpushed), fname)
+				wg.Wait()
+				if err := cmd.Wait(); err != nil {
+					continue
+				}
+				emit(SyncProgress{Phase: "push", File: fname, Current: i + 1, Total: len(unpushed), FilePercent: 100})
+				_ = db.RecordDestSync(entry.ID, dest.Name)
+				totalPushed++
 			}
-			emit(SyncProgress{Phase: "push", File: fname, Current: i + 1, Total: len(unpushed), FilePercent: 100})
-			_ = db.RecordDestSync(entry.ID, dest.Name)
-			totalPushed++
 		}
 	}
 

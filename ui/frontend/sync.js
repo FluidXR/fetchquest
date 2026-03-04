@@ -131,6 +131,8 @@
     }
   }
 
+  var skipLocalCb = document.getElementById('skip-local-cb');
+
   function runSync() {
     var b = FQ.backend();
     if (!b) return;
@@ -147,7 +149,7 @@
 
     window.runtime.EventsOn('sync:progress', onSyncProgress);
 
-    b.Sync()
+    b.Sync(skipLocalCb.checked)
       .then(function (msg) {
         window.runtime.EventsOff('sync:progress');
         stopDots();

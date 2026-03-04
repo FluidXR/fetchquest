@@ -89,8 +89,12 @@
         <!-- Actions -->
         <div class="sync-actions">
           <button id="preview-btn" type="button" class="btn-secondary" disabled>Scout Ahead</button>
-          <button id="sync-btn" type="button" class="btn-primary" disabled>Begin Quest!</button>
+          <button id="sync-btn" type="button" class="btn-primary" disabled>Sync</button>
         </div>
+        <label class="skip-local-label">
+          <input type="checkbox" id="skip-local-cb"> <span>Skip local</span>
+          <span class="text-muted text-sm"> — don't keep local copies</span>
+        </label>
         <p id="sync-status" class="sync-status" aria-live="polite"></p>
       </div>
 
