@@ -63,18 +63,41 @@ fetchquest clean
 
 That's it. Run `fetchquest sync` whenever you plug in.
 
-## Desktop app (GUI)
+## Desktop App (GUI)
 
-A graphical app is available for Windows, macOS, and Linux so you can sync without using the terminal.
+A pixel-art themed desktop app lets you sync, browse files, manage destinations, and clean your Quest — no terminal required.
 
-- **Run the app:** Double-click **FetchQuest** (or run `FetchQuest.exe` on Windows). You’ll see your connected headset and a **Sync my Quest** button.
-- **First-time setup:** You still need to add at least one destination once (e.g. a folder or cloud). Do that from the command line: `fetchquest config add-dest`, then use the app for daily syncs.
-- **Build the GUI from source:** You need [Go 1.21+](https://go.dev/dl/) and the [Wails CLI](https://wails.io/docs/gettingstarted/installation) (`go install github.com/wailsapp/wails/v2/cmd/wails@latest`). On **Linux**, install WebKitGTK first: `sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev` (Ubuntu/Debian), or `libwebkit2gtk-4.1-dev` then `wails build -tags webkit2_41`. Then:
-  ```bash
-  cd desktop
-  wails build
-  ```
-  The built app will be in `desktop/build/bin/`.
+- **Sync** — one-click sync with real-time progress bars and per-file transfer percentages
+- **Scout Ahead** — preview what will be synced before committing
+- **Files** — browse files on the Quest or locally, with sync status for each file
+- **Places** — add and manage destinations (Google Drive, Dropbox, NAS/SMB, or any rclone remote)
+- **Clean Quest** — delete fully backed-up files from the headset, with a confirmation modal showing exactly what will be removed
+- **Settings** — set your local sync directory and nickname your devices
+
+### Running the app
+
+Double-click **FetchQuest** (or `FetchQuest.exe` on Windows). Plug in your Quest via USB, add a destination from the Places tab, and hit **Begin Quest!**
+
+### Building from source
+
+Requires [Go 1.21+](https://go.dev/dl/) and the [Wails CLI](https://wails.io/docs/gettingstarted/installation):
+
+```bash
+go install github.com/wailsapp/wails/v2/cmd/wails@latest
+```
+
+On **Linux**, install WebKitGTK first:
+```bash
+sudo apt install libgtk-3-dev libwebkit2gtk-4.0-dev  # Ubuntu/Debian
+```
+
+Then build:
+```bash
+cd ui
+wails build
+```
+
+The built app will be in `ui/build/bin/`.
 
 <details>
 <summary><b>Or add a destination manually</b></summary>
@@ -151,7 +174,7 @@ cd fetchquest
 go build -o fetchquest .
 ```
 
-**Desktop app (GUI):** See [Desktop app (GUI)](#desktop-app-gui) above for Wails build steps.
+**Desktop app (GUI):** See [Desktop App](#desktop-app-gui) above for Wails build steps.
 
 Cross-compile CLI:
 
