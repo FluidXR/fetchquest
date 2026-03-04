@@ -3,11 +3,11 @@ FetchQuest
 fetchquest
 
 # Wails build output
-desktop/build/bin/
-desktop/desktop/
+ui/build/bin/
+ui/desktop/
 
 # Wails generated bindings
-desktop/frontend/wailsjs/
+ui/frontend/wailsjs/
 
 # Reference images (not app assets)
 /Background.png
