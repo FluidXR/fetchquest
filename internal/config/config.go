@@ -26,6 +26,8 @@ type Config struct {
 	Destinations []Destination           `yaml:"destinations"`
 	Devices      map[string]DeviceConfig `yaml:"devices,omitempty"`
 	MediaPaths   []string                `yaml:"media_paths"`
+	AdbPath      string                  `yaml:"adb_path,omitempty"`
+	RclonePath   string                  `yaml:"rclone_path,omitempty"`
 }
 
 // DefaultConfig returns a config with sensible defaults.

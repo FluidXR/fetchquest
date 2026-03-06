@@ -238,8 +238,22 @@
         </div>
 
         <div class="card">
+          <div class="card-label">Tool Paths</div>
+          <p class="text-muted text-sm" style="margin-bottom:8px">Leave blank to auto-detect from PATH.</p>
+          <div class="setting-row" style="margin-bottom:8px">
+            <label class="setting-label" style="min-width:60px">adb</label>
+            <input type="text" id="adb-path-input" class="input" placeholder="auto-detect">
+          </div>
+          <div class="setting-row" style="margin-bottom:8px">
+            <label class="setting-label" style="min-width:60px">rclone</label>
+            <input type="text" id="rclone-path-input" class="input" placeholder="auto-detect">
+          </div>
+          <button type="button" id="save-tool-paths-btn" class="btn-text btn-add">Save</button>
+        </div>
+
+        <div class="card">
           <div class="card-label">About</div>
-          <p class="text-muted text-sm">FetchQuest v0.4.0</p>
+          <p class="text-muted text-sm">FetchQuest v0.5.0</p>
           <a href="https://github.com/FluidXR/fetchquest" target="_blank" rel="noopener" class="text-sm">GitHub</a>
         </div>
       </div>

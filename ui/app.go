@@ -24,7 +24,9 @@ import (
 
 // App exposes methods to the frontend.
 type App struct {
-	ctx context.Context
+	ctx        context.Context
+	syncCancel context.CancelFunc
+	syncMu     gosync.Mutex
 }
 
 // SetContext is called by Wails on startup. Do not call from the frontend.
@@ -66,6 +68,8 @@ type ConfigSummary struct {
 	RcloneRemotes    []string           `json:"rcloneRemotes"` // for dropdown: remotes from "rclone listremotes"
 	MissingDeps      []DepInfo          `json:"missingDeps"`
 	HasDestinations  bool               `json:"hasDestinations"`
+	AdbPath          string             `json:"adbPath"`
+	RclonePath       string             `json:"rclonePath"`
 }
 
 // GetDevices returns connected Quest devices and their sync stats.
@@ -75,7 +79,7 @@ func (a *App) GetDevices() ([]DeviceInfo, error) {
 		return nil, err
 	}
 
-	adbClient := adb.NewClient()
+	adbClient := adb.NewClient(cfg.AdbPath)
 	devs, err := adbClient.Devices()
 	if err != nil {
 		return nil, err
@@ -142,9 +146,9 @@ func (a *App) GetConfig() (ConfigSummary, error) {
 		destsList = append(destsList, DestinationEntry{Name: d.Name, Remote: d.RcloneRemote})
 	}
 
-	missing := checkDeps()
+	missing := checkDeps(cfg)
 	var rcloneRemotes []string
-	if rc := rclone.NewClient(); rc != nil {
+	if rc := rclone.NewClient(cfg.RclonePath); rc != nil {
 		if list, err := rc.ListRemotes(); err == nil {
 			rcloneRemotes = list
 		}
@@ -157,6 +161,8 @@ func (a *App) GetConfig() (ConfigSummary, error) {
 		RcloneRemotes:    rcloneRemotes,
 		MissingDeps:      missing,
 		HasDestinations:  len(cfg.Destinations) > 0,
+		AdbPath:          cfg.AdbPath,
+		RclonePath:       cfg.RclonePath,
 	}, nil
 }
 
@@ -232,8 +238,13 @@ func (a *App) SetupOAuthRemote(rcloneType string) (string, error) {
 		return "", fmt.Errorf("unsupported type: %s", rcloneType)
 	}
 
+	cfg, err := config.Load()
+	if err != nil {
+		return "", err
+	}
+
 	// Reuse existing remote if already configured
-	rc := rclone.NewClient()
+	rc := rclone.NewClient(cfg.RclonePath)
 	existing, _ := rc.ListRemotes()
 	for _, e := range existing {
 		if strings.TrimSuffix(e, ":") == baseName {
@@ -245,7 +256,7 @@ func (a *App) SetupOAuthRemote(rcloneType string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	out, err := exec.CommandContext(ctx, "rclone", "config", "create", baseName, rcloneType).CombinedOutput()
+	out, err := exec.CommandContext(ctx, rc.Bin(), "config", "create", baseName, rcloneType).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("authorization failed — check your browser and try again: %w\n%s", err, out)
 	}
@@ -260,8 +271,13 @@ func (a *App) SetupSMBRemote(host, user, pass string) (string, error) {
 		return "", fmt.Errorf("server address is required")
 	}
 
+	cfg, err := config.Load()
+	if err != nil {
+		return "", err
+	}
+
 	remoteName := "nas"
-	rc := rclone.NewClient()
+	rc := rclone.NewClient(cfg.RclonePath)
 	existing, _ := rc.ListRemotes()
 	remoteName = uniqueRemoteName(remoteName, existing)
 
@@ -269,13 +285,13 @@ func (a *App) SetupSMBRemote(host, user, pass string) (string, error) {
 	if user = strings.TrimSpace(user); user != "" {
 		args = append(args, "user", user)
 	}
-	out, err := exec.Command("rclone", args...).CombinedOutput()
+	out, err := exec.Command(rc.Bin(), args...).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("failed to connect: %w\n%s", err, out)
 	}
 
 	if user != "" && pass != "" {
-		out, err = exec.Command("rclone", "config", "password", remoteName, "pass", pass).CombinedOutput()
+		out, err = exec.Command(rc.Bin(), "config", "password", remoteName, "pass", pass).CombinedOutput()
 		if err != nil {
 			return "", fmt.Errorf("failed to set password: %w\n%s", err, out)
 		}
@@ -294,6 +310,12 @@ type RemoteFolder struct {
 // root_folder_id on Google Drive so the browser shows the full drive).
 // rootFolderID optionally scopes a Google Drive listing to a specific folder.
 func (a *App) ListRemoteFolders(remoteName, path, destType, rootFolderID string) ([]RemoteFolder, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
+	}
+	rc := rclone.NewClient(cfg.RclonePath)
+
 	var remote string
 	if destType == "drive" {
 		if rootFolderID != "" {
@@ -306,7 +328,7 @@ func (a *App) ListRemoteFolders(remoteName, path, destType, rootFolderID string)
 	} else {
 		remote = remoteName + ":" + path
 	}
-	out, err := exec.Command("rclone", "lsd", remote).CombinedOutput()
+	out, err := exec.Command(rc.Bin(), "lsd", remote).CombinedOutput()
 	if err != nil {
 		return []RemoteFolder{}, nil // empty, not an error (remote might be empty)
 	}
@@ -338,24 +360,25 @@ func (a *App) ListRemoteFolders(remoteName, path, destType, rootFolderID string)
 // rootFolderID, if set, scopes a Google Drive remote to a specific folder (from a pasted URL).
 // Creates the folder on the remote if needed.
 func (a *App) AddDestinationAuto(remoteName, folderPath, destType, rootFolderID string) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	rc := rclone.NewClient(cfg.RclonePath)
+
 	// If the frontend already resolved a URL and provided rootFolderID, set it on the remote
 	if rootFolderID != "" && destType == "drive" {
-		out, err := exec.Command("rclone", "config", "update", remoteName, "root_folder_id", rootFolderID).CombinedOutput()
+		out, err := exec.Command(rc.Bin(), "config", "update", remoteName, "root_folder_id", rootFolderID).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("failed to configure Google Drive folder: %w\n%s", err, out)
 		}
 	} else {
 		// No rootFolderID — check if the folder path is a pasted URL
-		resolved, err := resolveInputPath(remoteName, folderPath, destType)
+		resolved, err := resolveInputPath(rc.Bin(), remoteName, folderPath, destType)
 		if err != nil {
 			return err
 		}
 		folderPath = resolved
-	}
-
-	cfg, err := config.Load()
-	if err != nil {
-		return err
 	}
 
 	nameMap := map[string]string{
@@ -376,7 +399,7 @@ func (a *App) AddDestinationAuto(remoteName, folderPath, destType, rootFolderID 
 
 	// Create folder on remote
 	if folderPath != "" {
-		out, err := exec.Command("rclone", "mkdir", remoteStr).CombinedOutput()
+		out, err := exec.Command(rc.Bin(), "mkdir", remoteStr).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("failed to create folder: %w\n%s", err, out)
 		}
@@ -394,12 +417,12 @@ var dropboxURLPattern = regexp.MustCompile(`dropbox\.com/home(.*)`)
 
 // resolveInputPath handles pasted URLs and returns a clean folder path.
 // For Google Drive URLs, it sets root_folder_id on the rclone remote.
-func resolveInputPath(remoteName, input, destType string) (string, error) {
+func resolveInputPath(rcloneBin, remoteName, input, destType string) (string, error) {
 	input = strings.TrimSpace(input)
 
 	if m := driveURLPattern.FindStringSubmatch(input); m != nil {
 		folderID := m[1]
-		out, err := exec.Command("rclone", "config", "update", remoteName, "root_folder_id", folderID).CombinedOutput()
+		out, err := exec.Command(rcloneBin, "config", "update", remoteName, "root_folder_id", folderID).CombinedOutput()
 		if err != nil {
 			return "", fmt.Errorf("failed to set Google Drive folder: %w\n%s", err, out)
 		}
@@ -488,10 +511,30 @@ type SyncProgress struct {
 	FilePercent int    `json:"filePercent"` // 0-100 progress of current file
 }
 
+// CancelSync cancels a running sync operation.
+func (a *App) CancelSync() {
+	a.syncMu.Lock()
+	defer a.syncMu.Unlock()
+	if a.syncCancel != nil {
+		a.syncCancel()
+	}
+}
+
 // Sync runs a full sync (pull from all devices, push to all destinations)
 // with progress events emitted to the frontend.
 // If skipLocal is true, files are pulled to a temp dir, pushed, then deleted locally.
 func (a *App) Sync(skipLocal bool) (string, error) {
+	syncCtx, cancel := context.WithCancel(context.Background())
+	a.syncMu.Lock()
+	a.syncCancel = cancel
+	a.syncMu.Unlock()
+	defer func() {
+		a.syncMu.Lock()
+		a.syncCancel = nil
+		a.syncMu.Unlock()
+		cancel()
+	}()
+
 	cfg, err := config.Load()
 	if err != nil {
 		return "", fmt.Errorf("load config: %w", err)
@@ -506,8 +549,8 @@ func (a *App) Sync(skipLocal bool) (string, error) {
 	}
 	defer db.Close()
 
-	adbClient := adb.NewClient()
-	rc := rclone.NewClient()
+	adbClient := adb.NewClient(cfg.AdbPath)
+	rc := rclone.NewClient(cfg.RclonePath)
 
 	emit := func(p SyncProgress) {
 		if a.ctx != nil {
@@ -531,12 +574,18 @@ func (a *App) Sync(skipLocal bool) (string, error) {
 	var toPull []pendingFile
 
 	for _, d := range devs {
+		if syncCtx.Err() != nil {
+			break
+		}
 		if !d.IsOnline() {
 			continue
 		}
 		emit(SyncProgress{Phase: "scan", File: d.Model, Current: 0, Total: 0})
 		for _, mp := range cfg.MediaPaths {
-			files, err := adbClient.ListFilesRecursive(d.Serial, mp)
+			if syncCtx.Err() != nil {
+				break
+			}
+			files, err := adbClient.ListFilesRecursiveCtx(syncCtx, d.Serial, mp)
 			if err != nil {
 				continue
 			}
@@ -565,6 +614,9 @@ func (a *App) Sync(skipLocal bool) (string, error) {
 	}
 
 	for i, pf := range toPull {
+		if syncCtx.Err() != nil {
+			break
+		}
 		fname := filepath.Base(pf.info.Path)
 		emit(SyncProgress{Phase: "pull", File: fname, Current: i + 1, Total: len(toPull), FilePercent: 0})
 
@@ -576,7 +628,7 @@ func (a *App) Sync(skipLocal bool) (string, error) {
 		localPath := filepath.Join(localDir, fname)
 
 		// Run adb pull with file-size progress monitoring
-		cmd := exec.Command("adb", "-s", pf.serial, "pull", pf.info.Path, localPath)
+		cmd := exec.CommandContext(syncCtx, adbClient.Bin(), "-s", pf.serial, "pull", pf.info.Path, localPath)
 		if err := cmd.Start(); err != nil {
 			continue
 		}
@@ -631,7 +683,7 @@ func (a *App) Sync(skipLocal bool) (string, error) {
 				}
 				remoteDest += mediaType + "/" + fname
 
-				pushCmd := exec.Command("rclone", "copyto",
+				pushCmd := exec.Command(rc.Bin(), "copyto",
 					"--stats-one-line", "--stats", "1s",
 					"--stats-log-level", "NOTICE", "--log-level", "NOTICE",
 					localPath, remoteDest)
@@ -667,8 +719,11 @@ func (a *App) Sync(skipLocal bool) (string, error) {
 	// ── Phase 2: Push (only in normal mode — skip-local pushes inline above) ──
 
 	totalPushed := 0
-	if !skipLocal {
+	if !skipLocal && syncCtx.Err() == nil {
 		for _, dest := range cfg.Destinations {
+			if syncCtx.Err() != nil {
+				break
+			}
 			if rc == nil || !rc.IsReachable(dest.RcloneRemote) {
 				continue
 			}
@@ -678,6 +733,9 @@ func (a *App) Sync(skipLocal bool) (string, error) {
 			}
 
 			for i, entry := range unpushed {
+				if syncCtx.Err() != nil {
+					break
+				}
 				if entry.LocalPath == "" {
 					continue
 				}
@@ -695,7 +753,7 @@ func (a *App) Sync(skipLocal bool) (string, error) {
 				remoteDest += filepath.ToSlash(relPath)
 
 				// Run rclone with stats as log lines to stderr (not -P which needs a terminal)
-				cmd := exec.Command("rclone", "copyto",
+				cmd := exec.CommandContext(syncCtx, rc.Bin(), "copyto",
 					"--stats-one-line", "--stats", "1s",
 					"--stats-log-level", "NOTICE", "--log-level", "NOTICE",
 					entry.LocalPath, remoteDest)
@@ -725,6 +783,10 @@ func (a *App) Sync(skipLocal bool) (string, error) {
 				totalPushed++
 			}
 		}
+	}
+
+	if syncCtx.Err() != nil {
+		return fmt.Sprintf("Sync stopped. Pulled %d files, uploaded %d before stopping.", totalPulled, totalPushed), nil
 	}
 
 	backupManifest(db, cfg, rc)
@@ -829,7 +891,7 @@ func (a *App) PreviewSync() (PreviewResult, error) {
 	}
 	defer db.Close()
 
-	adbClient := adb.NewClient()
+	adbClient := adb.NewClient(cfg.AdbPath)
 	devs, err := adbClient.Devices()
 	if err != nil {
 		return PreviewResult{}, err
@@ -925,7 +987,7 @@ func (a *App) GetDeviceFiles(serial string) ([]FileEntry, error) {
 		return nil, err
 	}
 
-	adbClient := adb.NewClient()
+	adbClient := adb.NewClient(cfg.AdbPath)
 	if serial == "" {
 		devs, err := adbClient.Devices()
 		if err != nil {
@@ -1079,7 +1141,7 @@ func (a *App) PreviewClean() (CleanPreviewResult, error) {
 	}
 	defer db.Close()
 
-	adbClient := adb.NewClient()
+	adbClient := adb.NewClient(cfg.AdbPath)
 	devs, err := adbClient.Devices()
 	if err != nil {
 		return result, err
@@ -1127,7 +1189,7 @@ func (a *App) CleanQuest() (string, error) {
 	}
 	defer db.Close()
 
-	adbClient := adb.NewClient()
+	adbClient := adb.NewClient(cfg.AdbPath)
 	devs, err := adbClient.Devices()
 	if err != nil {
 		return "", err
@@ -1226,29 +1288,40 @@ func (a *App) GetDestinationStatuses() ([]DestinationStatus, error) {
 	}
 	defer db.Close()
 
-	rc := rclone.NewClient()
-	var statuses []DestinationStatus
-	for _, d := range cfg.Destinations {
-		reachable := false
-		if rc != nil {
-			reachable = rc.IsReachable(d.RcloneRemote)
-		}
+	rc := rclone.NewClient(cfg.RclonePath)
+	statuses := make([]DestinationStatus, len(cfg.Destinations))
+	var wg gosync.WaitGroup
+	for i, d := range cfg.Destinations {
+		statuses[i] = DestinationStatus{Name: d.Name}
 
-		// Count files synced to this destination
-		fileCount := 0
+		// Count files synced (fast, local DB query)
 		var count int
-		err := db.CountSyncedTo(d.Name, &count)
-		if err == nil {
-			fileCount = count
+		if err := db.CountSyncedTo(d.Name, &count); err == nil {
+			statuses[i].FileCount = count
 		}
 
-		statuses = append(statuses, DestinationStatus{
-			Name:      d.Name,
-			Reachable: reachable,
-			FileCount: fileCount,
-		})
+		// Check reachability concurrently
+		if rc != nil {
+			wg.Add(1)
+			go func(idx int, remote string) {
+				defer wg.Done()
+				statuses[idx].Reachable = rc.IsReachable(remote)
+			}(i, d.RcloneRemote)
+		}
 	}
+	wg.Wait()
 	return statuses, nil
+}
+
+// SetToolPaths saves custom binary paths for adb and rclone.
+func (a *App) SetToolPaths(adbPath, rclonePath string) error {
+	cfg, err := config.Load()
+	if err != nil {
+		return err
+	}
+	cfg.AdbPath = strings.TrimSpace(adbPath)
+	cfg.RclonePath = strings.TrimSpace(rclonePath)
+	return config.Save(cfg)
 }
 
 // SetDeviceNickname saves a nickname for a device serial.
@@ -1270,18 +1343,19 @@ func (a *App) SetDeviceNickname(serial, nickname string) error {
 	return config.Save(cfg)
 }
 
-func checkDeps() []DepInfo {
+func checkDeps(cfg *config.Config) []DepInfo {
 	deps := []struct {
-		name   string
-		binary string
-		install map[string]string
+		name       string
+		binary     string
+		customPath string
+		install    map[string]string
 	}{
-		{"ADB (Android Debug Bridge)", "adb", map[string]string{
+		{"ADB (Android Debug Bridge)", "adb", cfg.AdbPath, map[string]string{
 			"darwin":  "brew install android-platform-tools",
 			"linux":   "sudo apt install android-tools-adb",
 			"windows": "winget install Google.PlatformTools",
 		}},
-		{"rclone", "rclone", map[string]string{
+		{"rclone", "rclone", cfg.RclonePath, map[string]string{
 			"darwin":  "brew install rclone",
 			"linux":   "curl https://rclone.org/install.sh | sudo bash",
 			"windows": "winget install Rclone.Rclone",
@@ -1290,6 +1364,13 @@ func checkDeps() []DepInfo {
 
 	var missing []DepInfo
 	for _, d := range deps {
+		// If a custom path is set, check that it exists
+		if d.customPath != "" {
+			if _, err := os.Stat(d.customPath); err == nil {
+				continue
+			}
+		}
+		// Fall back to PATH lookup
 		if _, err := exec.LookPath(d.binary); err != nil {
 			install := d.install[runtime.GOOS]
 			if install == "" {

@@ -73,13 +73,39 @@
     });
   }
 
+  // ── Tool paths ──
+
+  var saveToolPathsBtn = document.getElementById('save-tool-paths-btn');
+  if (saveToolPathsBtn) {
+    saveToolPathsBtn.addEventListener('click', function () {
+      var b = FQ.backend();
+      if (!b) return;
+      var adbPath = document.getElementById('adb-path-input').value.trim();
+      var rclonePath = document.getElementById('rclone-path-input').value.trim();
+      saveToolPathsBtn.textContent = 'Saving...';
+      saveToolPathsBtn.disabled = true;
+      b.SetToolPaths(adbPath, rclonePath).then(function () {
+        saveToolPathsBtn.textContent = 'Saved!';
+        setTimeout(function () { saveToolPathsBtn.textContent = 'Save'; saveToolPathsBtn.disabled = false; }, 1500);
+      }).catch(function (err) {
+        saveToolPathsBtn.textContent = 'Save';
+        saveToolPathsBtn.disabled = false;
+        FQ.setStatus(err.message || String(err), 'error');
+      });
+    });
+  }
+
   FQ.onViewActive('settings', function () {
     loadDeviceSettings();
-    // Refresh sync dir display
+    // Refresh sync dir display and tool paths
     var b = FQ.backend();
     if (b) b.GetConfig().then(function (cfg) {
       var input = document.getElementById('sync-dir-input');
       if (input && cfg) input.value = cfg.syncDir || '';
+      var adbInput = document.getElementById('adb-path-input');
+      if (adbInput && cfg) adbInput.value = cfg.adbPath || '';
+      var rcloneInput = document.getElementById('rclone-path-input');
+      if (rcloneInput && cfg) rcloneInput.value = cfg.rclonePath || '';
     });
   });
 })();

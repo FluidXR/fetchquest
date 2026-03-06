@@ -326,7 +326,7 @@ body {
   margin-top: 4px;
 }
 
-.sync-actions .btn-primary { flex: 1; }
+.sync-actions .btn-primary, .sync-actions .btn-danger { flex: 1; }
 
 .skip-local-label {
   display: flex;

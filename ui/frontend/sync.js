@@ -133,11 +133,50 @@
 
   var skipLocalCb = document.getElementById('skip-local-cb');
 
+  var syncing = false;
+  var cancelled = false;
+
+  function setSyncBtnState(isSyncing) {
+    syncing = isSyncing;
+    if (isSyncing) {
+      syncBtn.textContent = 'Stop';
+      syncBtn.classList.remove('btn-primary');
+      syncBtn.classList.add('btn-danger');
+      syncBtn.disabled = false;
+    } else {
+      syncBtn.textContent = 'Sync';
+      syncBtn.classList.remove('btn-danger');
+      syncBtn.classList.add('btn-primary');
+    }
+  }
+
   function runSync() {
     var b = FQ.backend();
     if (!b) return;
 
-    setActions(true);
+    if (syncing) {
+      // Reset UI immediately — don't wait for Sync promise to resolve
+      window.runtime.EventsOff('sync:progress');
+      stopDots();
+      setSyncBtnState(false);
+      syncProgress.hidden = true;
+      syncResults.hidden = false;
+      syncResultsContent.innerHTML = '<p class="text-muted" style="font-weight:600">Quest abandoned.</p>' +
+        '<div style="margin-top:10px"><button class="btn-text" id="sync-again">Try Again</button></div>';
+      var againBtn = document.getElementById('sync-again');
+      if (againBtn) againBtn.addEventListener('click', function () {
+        syncResults.hidden = true;
+        setActions(false);
+      });
+      setActions(false);
+      cancelled = true;
+      b.CancelSync();
+      return;
+    }
+
+    cancelled = false;
+    setSyncBtnState(true);
+    previewBtn.disabled = true;
     syncSummary.hidden = true;
     syncResults.hidden = true;
     syncProgress.hidden = false;
@@ -151,8 +190,10 @@
 
     b.Sync(skipLocalCb.checked)
       .then(function (msg) {
+        if (cancelled) return;
         window.runtime.EventsOff('sync:progress');
         stopDots();
+        setSyncBtnState(false);
         syncProgress.hidden = true;
         syncResults.hidden = false;
         syncResultsContent.innerHTML = '<p class="text-success" style="font-weight:600">Quest Complete!</p>' +
@@ -173,8 +214,10 @@
         loadAll();
       })
       .catch(function (err) {
+        if (cancelled) return;
         window.runtime.EventsOff('sync:progress');
         stopDots();
+        setSyncBtnState(false);
         syncProgress.hidden = true;
         FQ.setStatus(err.message || String(err), 'error');
         setActions(false);

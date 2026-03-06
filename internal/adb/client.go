@@ -2,7 +2,9 @@ package adb
 
 import (
 	"bufio"
+	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -18,16 +20,46 @@ type FileInfo struct {
 }
 
 // Client wraps ADB command-line calls.
-type Client struct{}
-
-// NewClient creates a new ADB client.
-func NewClient() *Client {
-	return &Client{}
+type Client struct {
+	bin string // path to adb binary
 }
+
+// NewClient creates a new ADB client. If adbPath is empty, "adb" is used (found via PATH).
+func NewClient(adbPath ...string) *Client {
+	bin := "adb"
+	if len(adbPath) > 0 && adbPath[0] != "" {
+		bin = adbPath[0]
+	} else {
+		bin = findBin("adb")
+	}
+	return &Client{bin: bin}
+}
+
+// findBin returns the full path to a binary, checking PATH first then
+// common Homebrew locations (useful inside macOS .app bundles where PATH
+// is minimal).
+func findBin(name string) string {
+	if p, err := exec.LookPath(name); err == nil {
+		return p
+	}
+	for _, dir := range []string{
+		"/opt/homebrew/bin",
+		"/usr/local/bin",
+	} {
+		p := dir + "/" + name
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return name // fall back to bare name
+}
+
+// Bin returns the adb binary path.
+func (c *Client) Bin() string { return c.bin }
 
 // Devices returns all connected ADB devices.
 func (c *Client) Devices() ([]Device, error) {
-	out, err := exec.Command("adb", "devices", "-l").CombinedOutput()
+	out, err := exec.Command(c.bin, "devices", "-l").CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("adb devices: %w\n%s", err, out)
 	}
@@ -37,7 +69,7 @@ func (c *Client) Devices() ([]Device, error) {
 // Connect connects to a wireless ADB device.
 func (c *Client) Connect(ip string, port int) error {
 	addr := fmt.Sprintf("%s:%d", ip, port)
-	out, err := exec.Command("adb", "connect", addr).CombinedOutput()
+	out, err := exec.Command(c.bin, "connect", addr).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("adb connect %s: %w\n%s", addr, err, out)
 	}
@@ -51,7 +83,7 @@ func (c *Client) Connect(ip string, port int) error {
 // ListFiles lists files in a directory on the device, non-recursively.
 func (c *Client) ListFiles(serial, remotePath string) ([]FileInfo, error) {
 	// Use `ls -la` to get file info
-	out, err := exec.Command("adb", "-s", serial, "shell",
+	out, err := exec.Command(c.bin, "-s", serial, "shell",
 		fmt.Sprintf("find %s -maxdepth 1 -type f -exec stat -c '%%s %%Y %%n' {} +", remotePath),
 	).CombinedOutput()
 	if err != nil {
@@ -66,10 +98,18 @@ func (c *Client) ListFiles(serial, remotePath string) ([]FileInfo, error) {
 
 // ListFilesRecursive lists all files recursively under a directory.
 func (c *Client) ListFilesRecursive(serial, remotePath string) ([]FileInfo, error) {
-	out, err := exec.Command("adb", "-s", serial, "shell",
+	return c.ListFilesRecursiveCtx(context.Background(), serial, remotePath)
+}
+
+// ListFilesRecursiveCtx is like ListFilesRecursive but accepts a context for cancellation.
+func (c *Client) ListFilesRecursiveCtx(ctx context.Context, serial, remotePath string) ([]FileInfo, error) {
+	out, err := exec.CommandContext(ctx, c.bin, "-s", serial, "shell",
 		fmt.Sprintf("find %s -type f -exec stat -c '%%s %%Y %%n' {} +", remotePath),
 	).CombinedOutput()
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		if strings.Contains(string(out), "No such file") {
 			return nil, nil
 		}
@@ -80,7 +120,7 @@ func (c *Client) ListFilesRecursive(serial, remotePath string) ([]FileInfo, erro
 
 // Pull copies a file from the device to the local filesystem.
 func (c *Client) Pull(serial, remotePath, localPath string) error {
-	out, err := exec.Command("adb", "-s", serial, "pull", remotePath, localPath).CombinedOutput()
+	out, err := exec.Command(c.bin, "-s", serial, "pull", remotePath, localPath).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("adb pull %s: %w\n%s", remotePath, err, out)
 	}
@@ -89,7 +129,7 @@ func (c *Client) Pull(serial, remotePath, localPath string) error {
 
 // Remove deletes a file on the device.
 func (c *Client) Remove(serial, remotePath string) error {
-	out, err := exec.Command("adb", "-s", serial, "shell", "rm", remotePath).CombinedOutput()
+	out, err := exec.Command(c.bin, "-s", serial, "shell", "rm", remotePath).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("adb rm %s: %w\n%s", remotePath, err, out)
 	}

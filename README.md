@@ -14,9 +14,10 @@ Grab a binary from [**Releases**](https://github.com/FluidXR/fetchquest/releases
 
 | Platform | Download |
 |----------|----------|
-| macOS (Apple Silicon) | [fetchquest-0.4.0-darwin-arm64.tar.gz](https://github.com/FluidXR/fetchquest/releases/download/v0.4.0/fetchquest-0.4.0-darwin-arm64.tar.gz) |
-| Linux (x86_64) | [fetchquest-0.4.0-linux-amd64.tar.gz](https://github.com/FluidXR/fetchquest/releases/download/v0.4.0/fetchquest-0.4.0-linux-amd64.tar.gz) |
-| Windows (x86_64) | [fetchquest-0.4.0-windows-amd64.zip](https://github.com/FluidXR/fetchquest/releases/download/v0.4.0/fetchquest-0.4.0-windows-amd64.zip) |
+| macOS (Apple Silicon) | [fetchquest-0.5.0-darwin-arm64.tar.gz](https://github.com/FluidXR/fetchquest/releases/download/v0.5.0/fetchquest-0.5.0-darwin-arm64.tar.gz) |
+| macOS Desktop App | [FetchQuest.app.zip](https://github.com/FluidXR/fetchquest/releases/download/v0.5.0/FetchQuest.app.zip) |
+| Linux (x86_64) | [fetchquest-0.5.0-linux-amd64.tar.gz](https://github.com/FluidXR/fetchquest/releases/download/v0.5.0/fetchquest-0.5.0-linux-amd64.tar.gz) |
+| Windows (x86_64) | [fetchquest-0.5.0-windows-amd64.zip](https://github.com/FluidXR/fetchquest/releases/download/v0.5.0/fetchquest-0.5.0-windows-amd64.zip) |
 
 Extract it, put it on your PATH. It'll prompt you to install ADB and rclone on first run if they're missing.
 
