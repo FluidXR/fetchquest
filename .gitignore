@@ -6,6 +6,9 @@ fetchquest
 ui/build/bin/
 ui/desktop/
 
+# Release artifacts
+dist/
+
 # Wails generated bindings
 ui/frontend/wailsjs/
 
