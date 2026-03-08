@@ -59,7 +59,7 @@ func (c *Client) Bin() string { return c.bin }
 
 // Devices returns all connected ADB devices.
 func (c *Client) Devices() ([]Device, error) {
-	out, err := exec.Command(c.bin, "devices", "-l").CombinedOutput()
+	out, err := newCmd(c.bin, "devices", "-l").CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("adb devices: %w\n%s", err, out)
 	}
@@ -69,7 +69,7 @@ func (c *Client) Devices() ([]Device, error) {
 // Connect connects to a wireless ADB device.
 func (c *Client) Connect(ip string, port int) error {
 	addr := fmt.Sprintf("%s:%d", ip, port)
-	out, err := exec.Command(c.bin, "connect", addr).CombinedOutput()
+	out, err := newCmd(c.bin, "connect", addr).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("adb connect %s: %w\n%s", addr, err, out)
 	}
@@ -83,7 +83,7 @@ func (c *Client) Connect(ip string, port int) error {
 // ListFiles lists files in a directory on the device, non-recursively.
 func (c *Client) ListFiles(serial, remotePath string) ([]FileInfo, error) {
 	// Use `ls -la` to get file info
-	out, err := exec.Command(c.bin, "-s", serial, "shell",
+	out, err := newCmd(c.bin, "-s", serial, "shell",
 		fmt.Sprintf("find %s -maxdepth 1 -type f -exec stat -c '%%s %%Y %%n' {} +", remotePath),
 	).CombinedOutput()
 	if err != nil {
@@ -103,7 +103,7 @@ func (c *Client) ListFilesRecursive(serial, remotePath string) ([]FileInfo, erro
 
 // ListFilesRecursiveCtx is like ListFilesRecursive but accepts a context for cancellation.
 func (c *Client) ListFilesRecursiveCtx(ctx context.Context, serial, remotePath string) ([]FileInfo, error) {
-	out, err := exec.CommandContext(ctx, c.bin, "-s", serial, "shell",
+	out, err := newCmdContext(ctx, c.bin, "-s", serial, "shell",
 		fmt.Sprintf("find %s -type f -exec stat -c '%%s %%Y %%n' {} +", remotePath),
 	).CombinedOutput()
 	if err != nil {
@@ -120,7 +120,7 @@ func (c *Client) ListFilesRecursiveCtx(ctx context.Context, serial, remotePath s
 
 // Pull copies a file from the device to the local filesystem.
 func (c *Client) Pull(serial, remotePath, localPath string) error {
-	out, err := exec.Command(c.bin, "-s", serial, "pull", remotePath, localPath).CombinedOutput()
+	out, err := newCmd(c.bin, "-s", serial, "pull", remotePath, localPath).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("adb pull %s: %w\n%s", remotePath, err, out)
 	}
@@ -129,7 +129,7 @@ func (c *Client) Pull(serial, remotePath, localPath string) error {
 
 // Remove deletes a file on the device.
 func (c *Client) Remove(serial, remotePath string) error {
-	out, err := exec.Command(c.bin, "-s", serial, "shell", "rm", remotePath).CombinedOutput()
+	out, err := newCmd(c.bin, "-s", serial, "shell", "rm", remotePath).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("adb rm %s: %w\n%s", remotePath, err, out)
 	}

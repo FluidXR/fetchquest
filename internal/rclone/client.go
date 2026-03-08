@@ -50,7 +50,7 @@ func (c *Client) Bin() string { return c.bin }
 // Copy uploads a local file to an rclone remote destination.
 // dest should be like "gdrive:QuestMedia/device123/Videos/"
 func (c *Client) Copy(localPath, dest string) error {
-	out, err := exec.Command(c.bin, "copyto", localPath, dest).CombinedOutput()
+	out, err := newCmd(c.bin, "copyto", localPath, dest).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("rclone copyto %s -> %s: %w\n%s", localPath, dest, err, out)
 	}
@@ -59,7 +59,7 @@ func (c *Client) Copy(localPath, dest string) error {
 
 // CopyFrom downloads a remote file to a local path.
 func (c *Client) CopyFrom(remoteSrc, localDest string) error {
-	out, err := exec.Command(c.bin, "copyto", remoteSrc, localDest).CombinedOutput()
+	out, err := newCmd(c.bin, "copyto", remoteSrc, localDest).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("rclone copyto %s -> %s: %w\n%s", remoteSrc, localDest, err, out)
 	}
@@ -78,7 +78,7 @@ var excludeFlags = []string{
 func (c *Client) CopyDir(localDir, dest string) error {
 	args := append([]string{"copy"}, excludeFlags...)
 	args = append(args, localDir, dest)
-	out, err := exec.Command(c.bin, args...).CombinedOutput()
+	out, err := newCmd(c.bin, args...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("rclone copy %s -> %s: %w\n%s", localDir, dest, err, out)
 	}
@@ -87,7 +87,7 @@ func (c *Client) CopyDir(localDir, dest string) error {
 
 // Check verifies a file exists at the destination.
 func (c *Client) Check(localPath, dest string) error {
-	out, err := exec.Command(c.bin, "check", "--one-way",
+	out, err := newCmd(c.bin, "check", "--one-way",
 		"--include", localPath, ".", dest,
 	).CombinedOutput()
 	if err != nil {
@@ -100,13 +100,13 @@ func (c *Client) Check(localPath, dest string) error {
 func (c *Client) IsReachable(remote string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	err := exec.CommandContext(ctx, c.bin, "lsd", remote, "--max-depth", "0").Run()
+	err := newCmdContext(ctx, c.bin, "lsd", remote, "--max-depth", "0").Run()
 	return err == nil
 }
 
 // ListRemotes returns configured rclone remotes.
 func (c *Client) ListRemotes() ([]string, error) {
-	out, err := exec.Command(c.bin, "listremotes").CombinedOutput()
+	out, err := newCmd(c.bin, "listremotes").CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("rclone listremotes: %w\n%s", err, out)
 	}

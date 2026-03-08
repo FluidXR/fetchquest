@@ -256,7 +256,7 @@ func (a *App) SetupOAuthRemote(rcloneType string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	out, err := exec.CommandContext(ctx, rc.Bin(), "config", "create", baseName, rcloneType).CombinedOutput()
+	out, err := newCmdContext(ctx, rc.Bin(), "config", "create", baseName, rcloneType).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("authorization failed — check your browser and try again: %w\n%s", err, out)
 	}
@@ -285,13 +285,13 @@ func (a *App) SetupSMBRemote(host, user, pass string) (string, error) {
 	if user = strings.TrimSpace(user); user != "" {
 		args = append(args, "user", user)
 	}
-	out, err := exec.Command(rc.Bin(), args...).CombinedOutput()
+	out, err := newCmd(rc.Bin(), args...).CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("failed to connect: %w\n%s", err, out)
 	}
 
 	if user != "" && pass != "" {
-		out, err = exec.Command(rc.Bin(), "config", "password", remoteName, "pass", pass).CombinedOutput()
+		out, err = newCmd(rc.Bin(), "config", "password", remoteName, "pass", pass).CombinedOutput()
 		if err != nil {
 			return "", fmt.Errorf("failed to set password: %w\n%s", err, out)
 		}
@@ -328,7 +328,7 @@ func (a *App) ListRemoteFolders(remoteName, path, destType, rootFolderID string)
 	} else {
 		remote = remoteName + ":" + path
 	}
-	out, err := exec.Command(rc.Bin(), "lsd", remote).CombinedOutput()
+	out, err := newCmd(rc.Bin(), "lsd", remote).CombinedOutput()
 	if err != nil {
 		return []RemoteFolder{}, nil // empty, not an error (remote might be empty)
 	}
@@ -368,7 +368,7 @@ func (a *App) AddDestinationAuto(remoteName, folderPath, destType, rootFolderID 
 
 	// If the frontend already resolved a URL and provided rootFolderID, set it on the remote
 	if rootFolderID != "" && destType == "drive" {
-		out, err := exec.Command(rc.Bin(), "config", "update", remoteName, "root_folder_id", rootFolderID).CombinedOutput()
+		out, err := newCmd(rc.Bin(), "config", "update", remoteName, "root_folder_id", rootFolderID, "--non-interactive").CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("failed to configure Google Drive folder: %w\n%s", err, out)
 		}
@@ -399,7 +399,7 @@ func (a *App) AddDestinationAuto(remoteName, folderPath, destType, rootFolderID 
 
 	// Create folder on remote
 	if folderPath != "" {
-		out, err := exec.Command(rc.Bin(), "mkdir", remoteStr).CombinedOutput()
+		out, err := newCmd(rc.Bin(), "mkdir", remoteStr).CombinedOutput()
 		if err != nil {
 			return fmt.Errorf("failed to create folder: %w\n%s", err, out)
 		}
@@ -422,7 +422,7 @@ func resolveInputPath(rcloneBin, remoteName, input, destType string) (string, er
 
 	if m := driveURLPattern.FindStringSubmatch(input); m != nil {
 		folderID := m[1]
-		out, err := exec.Command(rcloneBin, "config", "update", remoteName, "root_folder_id", folderID).CombinedOutput()
+		out, err := newCmd(rcloneBin, "config", "update", remoteName, "root_folder_id", folderID, "--non-interactive").CombinedOutput()
 		if err != nil {
 			return "", fmt.Errorf("failed to set Google Drive folder: %w\n%s", err, out)
 		}
@@ -628,7 +628,7 @@ func (a *App) Sync(skipLocal bool) (string, error) {
 		localPath := filepath.Join(localDir, fname)
 
 		// Run adb pull with file-size progress monitoring
-		cmd := exec.CommandContext(syncCtx, adbClient.Bin(), "-s", pf.serial, "pull", pf.info.Path, localPath)
+		cmd := newCmdContext(syncCtx, adbClient.Bin(), "-s", pf.serial, "pull", pf.info.Path, localPath)
 		if err := cmd.Start(); err != nil {
 			continue
 		}
@@ -683,7 +683,7 @@ func (a *App) Sync(skipLocal bool) (string, error) {
 				}
 				remoteDest += mediaType + "/" + fname
 
-				pushCmd := exec.Command(rc.Bin(), "copyto",
+				pushCmd := newCmd(rc.Bin(), "copyto",
 					"--stats-one-line", "--stats", "1s",
 					"--stats-log-level", "NOTICE", "--log-level", "NOTICE",
 					localPath, remoteDest)
@@ -753,7 +753,7 @@ func (a *App) Sync(skipLocal bool) (string, error) {
 				remoteDest += filepath.ToSlash(relPath)
 
 				// Run rclone with stats as log lines to stderr (not -P which needs a terminal)
-				cmd := exec.CommandContext(syncCtx, rc.Bin(), "copyto",
+				cmd := newCmdContext(syncCtx, rc.Bin(), "copyto",
 					"--stats-one-line", "--stats", "1s",
 					"--stats-log-level", "NOTICE", "--log-level", "NOTICE",
 					entry.LocalPath, remoteDest)
